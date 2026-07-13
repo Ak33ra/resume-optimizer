@@ -1,0 +1,24 @@
+# Ground-truth fields for ONE posting, used for the optional parse-safety diff
+# (see benchmarks/README.md). Copy to <slug>.yaml — that real file is gitignored
+# because it holds your contact info — and fill in the TRUE values. A parser
+# (OpenResume / Affinda / pyresparser) that fails to recover any of these has a
+# parse bug to fix before you trust the content scores.
+
+name: Jane Doe
+email: jane@example.com
+phone: "+1 617-555-0100"
+links:
+  - github.com/janedoe
+  - linkedin.com/in/janedoe
+education:
+  - school: Example University
+    degree: B.S. in Computer Science
+experience:
+  - title: Software Engineer Intern
+    company: Example Corp
+    dates: Jun 2025 - Aug 2025
+skills:
+  - Python
+  - Go
+  - Kubernetes
+  - PyTorch

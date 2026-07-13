@@ -1,0 +1,20 @@
+# Optional dependencies for benchmarks/benchmark.py (richer, independent scoring).
+# The core scripts run WITHOUT these (built-in lexicon + no semantic metric);
+# install to upgrade coverage to a 60k-skill dictionary and add semantic cosine.
+#
+# Pin exact versions after your first successful run so scores stay reproducible:
+#   pip freeze | grep -Ei 'skillner|spacy|sentence-transformers|pypdf' >> benchmarks/requirements.txt
+
+pypdf>=4.0                     # PDF text extraction (shared with scripts/ats_check.py)
+
+# --- Deterministic keyword/skill coverage (SkillNer + spaCy) ---
+skillNer>=1.0.3
+spacy>=3.7,<4.0
+# after install:  python -m spacy download en_core_web_lg    # ~600 MB
+
+# --- Semantic relevance (downloads all-MiniLM-L6-v2 ~90MB on first use) ---
+sentence-transformers>=2.7
+
+# --- Optional third parse opinion (UNMAINTAINED: pins old spaCy 2.x). ---
+# --- Install only in an isolated venv; see README. ---
+# pyresparser==1.0.6

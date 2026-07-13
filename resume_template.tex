@@ -1,0 +1,215 @@
+%==============================================================================
+%  resume_template.tex  —  canonical template for this toolkit
+%------------------------------------------------------------------------------
+%  Based on "Jake's Resume" by Jake Gutierrez (MIT License).
+%  Single-column, ATS-safe, tuned to fit ONE page. Compile with pdflatex.
+%
+%  WHY THIS TEMPLATE:
+%    - Single column parses reliably in every major ATS (Greenhouse, Lever,
+%      Workday, Ashby, iCIMS). Two-column layouts get read out of order.
+%    - Standard section headings ("Education", "Experience", "Projects",
+%      "Technical Skills") that parsers recognize.
+%    - No images, icons, text boxes, tables-as-layout, or header/footer content
+%      — all of which break parsing.
+%    - `\pdfgentounicode=1` (below) forces machine-SELECTABLE text so the PDF is
+%      readable by ATS and copy-paste. Do NOT remove it.
+%
+%  EDITING RULES FOR THE AGENT (see CONSTRAINTS.md + WRITING_GUIDE.md):
+%    - Keep it to EXACTLY one page. To save space, cut fluff and tighten
+%      language FIRST; only then adjust the \vspace values or margins.
+%    - Every claim must be true and defensible (see rewrite policy in AGENT.md).
+%    - Reorder/keep only the sections relevant to the target role
+%      (see ROLE_PROFILES.md for per-industry section ordering).
+%==============================================================================
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+%----------- FONT OPTIONS -----------
+% Default (no package) is Computer Modern — ATS-safe here because it embeds with
+% a ToUnicode map (see \pdfgentounicode below), so the text extracts cleanly.
+% If you switch, pick a web-safe face (Arial/Helvetica/Calibri/Times/Georgia/
+% Roboto/Open Sans/Lato) and keep it embedded.
+% sans-serif (uncomment ONE, optional):
+% \usepackage[sfdefault]{FiraSans}
+% \usepackage[sfdefault]{roboto}
+% \usepackage[sfdefault]{noto-sans}
+% serif:
+% \usepackage{CormorantGaramond}
+% \usepackage{charter}
+
+\pagestyle{fancy}
+\fancyhf{}                 % clear all header/footer fields (ATS: no header/footer content)
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Margins — tuned so a full page of content still fits on ONE page.
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Section heading formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Ensure that generated PDF is machine-readable / ATS-parseable. DO NOT REMOVE.
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+%
+% Argument order (position-based) for the two-line \resumeSubheading:
+%   \resumeSubheading{BOLD top-left}{top-right}{italic bottom-left}{italic bottom-right}
+% Conventions used below:
+%   Education:  {School}{City, State}{Degree, GPA}{Dates}
+%   Experience: {Role/Title}{Dates}{Company}{City, State}
+% \resumeProjectHeading{left (name | tech)}{right (dates)}
+% \resumeSubSubheading{italic left}{italic right}  — e.g. a 2nd role at one company
+% \resumeItem{...} — one bullet.  Wrap bullets in \resumeItemListStart/End,
+% and wrap subheadings in \resumeSubHeadingListStart/End.
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%==============================================================================
+\begin{document}
+
+%----------- HEADING -----------
+% Keep contact links to those that add signal (GitHub, personal site/blog,
+% LinkedIn, Google Scholar for research roles). Use plain text; the ATS reads the
+% URL text. For research-lab targets, a well-read technical blog or a notable
+% repo can be your single strongest top-of-page item (see ROLE_PROFILES.md).
+\begin{center}
+    \textbf{\Huge \scshape Firstname Lastname} \\ \vspace{1pt}
+    \small
+    \href{mailto:you@example.com}{\underline{you@example.com}} $|$
+    123-456-7890 $|$
+    \href{https://linkedin.com/in/yourhandle}{\underline{linkedin.com/in/yourhandle}} $|$
+    \href{https://github.com/yourhandle}{\underline{github.com/yourhandle}}
+\end{center}
+
+%----------- EDUCATION -----------
+\section{Education}
+  % GPA: list only if ~3.5+ (FAANG) / ~3.7+ (quant); otherwise delete it below.
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {University Name}{City, State}
+      {B.S. in Computer Science, GPA X.XX/4.00}{Aug 2022 -- May 2026}
+      % Optional 4th-line details via \resumeItemListStart if you list coursework/honors:
+      % \resumeItemListStart
+      %   \resumeItem{\textbf{Relevant coursework:} Data Structures, Algorithms, Operating Systems, Machine Learning, Probability}
+      % \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%----------- EXPERIENCE -----------
+\section{Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {Software Engineer Intern}{May 2025 -- Aug 2025}
+      {Company Name}{City, State}
+      \resumeItemListStart
+        \resumeItem{Accomplished [measurable outcome] as measured by [metric] by doing [action / technical work]}
+        \resumeItem{Built [system/feature] using [technologies], reducing [X] by [Y\%] for [N users/scale]}
+        \resumeItem{Owned [scope]; collaborated with [team] to ship [result]}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Prior Role}{Jun 2024 -- Aug 2024}
+      {Company Name}{City, State}
+      \resumeItemListStart
+        \resumeItem{Impact-first bullet — verb + what + quantified result}
+      \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+%----------- PROJECTS -----------
+\section{Projects}
+    \resumeSubHeadingListStart
+      \resumeProjectHeading
+          {\textbf{Project Name} $|$ \emph{Tech, Stack, Used}}{Jan 2025 -- Mar 2025}
+          \resumeItemListStart
+            \resumeItem{What it does and the hard technical problem you solved; quantify scale/impact}
+            \resumeItem{Notable result — stars, users, benchmark, or measurable outcome}
+          \resumeItemListEnd
+    \resumeSubHeadingListEnd
+
+%----------- TECHNICAL SKILLS -----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, C++, Java, Go, SQL, JavaScript/TypeScript} \\
+     \textbf{Frameworks/Libraries}{: React, Node.js, PyTorch, TensorFlow, gRPC} \\
+     \textbf{Tools/Platforms}{: Git, Docker, Kubernetes, AWS/GCP, Linux, Bazel} \\
+    }}
+ \end{itemize}
+
+%----------- OPTIONAL SECTIONS -----------
+% Uncomment and reorder per ROLE_PROFILES.md. Research roles: move Publications
+% high. Quant: consider Awards/Competitions (ICPC, olympiads, Kaggle) high.
+%
+% \section{Publications}
+%   \resumeSubHeadingListStart
+%     \resumeItem{\textbf{Title}. Authors. \emph{Venue}, Year. [link]}
+%   \resumeSubHeadingListEnd
+%
+% \section{Awards \& Competitions}
+%   \resumeSubHeadingListStart
+%     \resumeItem{Award / competition placement — scope and year}
+%   \resumeSubHeadingListEnd
+
+\end{document}

@@ -1,2 +1,56 @@
+# ============================================================================
+#  PRIVACY GUARDRAIL  —  read PRIVACY.md
+#  This repo is a PUBLIC skeleton. The paths below hold PII (your resumes and
+#  source material) and are ignored BY DEFAULT so a stray `git add .` can never
+#  stage them. The tracked `*.example.md` files and READMEs are safe templates.
+# ============================================================================
 resumes/*
+!resumes/README.md
+
 source_material/*
+!source_material/README.md
+!source_material/*.example.md
+
+# ----------------------------------------------------------------------------
+#  PRIVATE FORK ONLY  —  keeping a personal, version-controlled history of your
+#  real resumes and source material.
+#  Do this ONLY inside your OWN PRIVATE repo (its `origin` is a private remote —
+#  see PRIVACY.md). NEVER in a clone of the public skeleton.
+#  To turn it on, uncomment the two lines below (later rules override earlier
+#  ones, so this un-ignores your real files), then run once:
+#      git config resumeopt.allowPII true
+#  Alternatively, leave these commented and `git add -f` files deliberately.
+# ----------------------------------------------------------------------------
+# !resumes/*
+# !source_material/*
+
+# ============================================================================
+#  Benchmarks — keep personal data & run outputs local
+# ============================================================================
+benchmarks/ground_truth/*
+!benchmarks/ground_truth/*.example.yaml
+benchmarks/results/*
+!benchmarks/results/.gitkeep
+benchmarks/external/*
+!benchmarks/external/.gitkeep
+
+# ============================================================================
+#  Build artifacts & cruft (always ignored)
+# ============================================================================
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.bbl
+*.blg
+*.run.xml
+/resume_template.pdf
+
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
