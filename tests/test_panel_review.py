@@ -17,6 +17,7 @@ class PanelReviewTests(unittest.TestCase):
         self.assertLess(prompt.index("CANDIDATE_ONLY"), prompt.index("INCUMBENT_ONLY"))
         self.assertEqual(labels, {"resume_a": "candidate", "resume_b": "incumbent"})
         self.assertNotIn("change description", prompt.lower())
+        self.assertIn("untrusted data", prompt.lower())
 
     def test_extract_json_ignores_leading_prose(self):
         self.assertEqual(extract_json("note\n```json\n{\"a\": 1}\n```"), {"a": 1})

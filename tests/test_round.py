@@ -15,6 +15,7 @@ from scripts.round import (
     sha256_text,
     start_round,
 )
+from scripts.job_intake import FetchedJob, JobTarget, document_for
 from scripts.scoring import DIMS
 
 
@@ -46,7 +47,20 @@ class RoundTests(unittest.TestCase):
         for directory in ("resumes", "outputs", "job_descriptions", "source_material"):
             (self.root / directory).mkdir()
         self.paths = TargetPaths(self.root, "example")
-        self.paths.jd.write_text("Job", encoding="utf-8")
+        description = (
+            "Design and operate reliable distributed services. Required qualifications include "
+            "professional software engineering experience with Python, databases, testing, and "
+            "production operations. Responsibilities include collaborating with product teams, "
+            "reviewing technical designs, improving observability, and responding to incidents. "
+            "Preferred qualifications include cloud infrastructure and Kubernetes experience."
+        )
+        self.paths.jd.write_text(
+            document_for(
+                JobTarget("example", "https://careers.example.com/jobs/1", "big_tech"),
+                FetchedJob("Example", "Engineer", description, "manual", "https://careers.example.com/jobs/1", "https://careers.example.com/jobs/1"),
+            ),
+            encoding="utf-8",
+        )
         self.paths.canonical.write_text(
             "\\begin{document}\n% source: role\n\\resumeSubheading{Engineer}{Jan 2024 -- Present}{Co}{Remote}\n\\end{document}\n",
             encoding="utf-8",
@@ -71,6 +85,7 @@ class RoundTests(unittest.TestCase):
         self.panel = self.root / "panel.json"
         baseline_panel = panel_payload()
         baseline_panel["input"]["candidate_sha256"] = sha256_text(self.paths.canonical)
+        baseline_panel["input"]["jd_sha256"] = sha256_text(self.paths.jd)
         self.panel.write_text(json.dumps(baseline_panel), encoding="utf-8")
 
     def tearDown(self):
@@ -80,6 +95,7 @@ class RoundTests(unittest.TestCase):
         state = init_target(self.paths, "big_tech", self.panel, "passed")
         self.assertEqual(state["status"], "ready")
         self.assertEqual(state["canonical"]["scores"]["composite"], 80)
+        self.assertEqual(state["job_description"]["sha256"], sha256_text(self.paths.jd))
         log = self.paths.log.read_text(encoding="utf-8")
         self.assertLess(log.index("baseline"), log.index("old"))
 
@@ -97,6 +113,12 @@ class RoundTests(unittest.TestCase):
         with self.assertRaisesRegex(RoundError, "outside the orchestrator"):
             start_round(self.paths, "test")
 
+    def test_start_detects_job_description_change(self):
+        init_target(self.paths, "big_tech", self.panel, "passed")
+        self.paths.jd.write_text(self.paths.jd.read_text(encoding="utf-8") + "changed\n", encoding="utf-8")
+        with self.assertRaisesRegex(RoundError, "job description"):
+            start_round(self.paths, "test")
+
     def test_invalid_panel_is_rejected(self):
         value = panel_payload()
         value["panel"]["valid"] = False
@@ -110,6 +132,21 @@ class RoundTests(unittest.TestCase):
         value["family"] = "startup"
         self.panel.write_text(json.dumps(value), encoding="utf-8")
         with self.assertRaisesRegex(RoundError, "panel family"):
+            init_target(self.paths, "big_tech", self.panel, "passed")
+
+    def test_init_rejects_job_description_for_another_family(self):
+        text = self.paths.jd.read_text(encoding="utf-8").replace(
+            'family: "big_tech"', 'family: "startup"'
+        )
+        self.paths.jd.write_text(text, encoding="utf-8")
+        with self.assertRaisesRegex(RoundError, "job description family"):
+            init_target(self.paths, "big_tech", self.panel, "passed")
+
+    def test_init_rejects_panel_scored_against_another_jd(self):
+        value = json.loads(self.panel.read_text(encoding="utf-8"))
+        value["input"]["jd_sha256"] = "0" * 64
+        self.panel.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaisesRegex(RoundError, "job-description hash"):
             init_target(self.paths, "big_tech", self.panel, "passed")
 
     def test_panel_diversity_metadata_is_recomputed(self):
@@ -150,6 +187,7 @@ class RoundTests(unittest.TestCase):
         paired["input"] = {
             "incumbent_sha256": sha256_text(self.paths.canonical),
             "candidate_sha256": sha256_text(self.paths.candidate),
+            "jd_sha256": sha256_text(self.paths.jd),
         }
         paired["aggregate"] = {
             "incumbent": panel_payload(80)["aggregate"],
@@ -187,6 +225,7 @@ class RoundTests(unittest.TestCase):
         paired["input"] = {
             "incumbent_sha256": sha256_text(self.paths.canonical),
             "candidate_sha256": sha256_text(self.paths.candidate),
+            "jd_sha256": sha256_text(self.paths.jd),
         }
         paired["aggregate"] = {
             "incumbent": panel_payload(80)["aggregate"],

@@ -21,14 +21,16 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from .job_intake import validate_document
     from .provenance_check import validate_provenance
     from .scoring import DIMS, FAMILY_ADJUSTMENTS, keep_decision, weights_for
 except ImportError:  # Direct execution
+    from job_intake import validate_document
     from provenance_check import validate_provenance
     from scoring import DIMS, FAMILY_ADJUSTMENTS, keep_decision, weights_for
 
 
-STATE_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = 2
 
 
 class RoundError(RuntimeError):
@@ -133,6 +135,36 @@ def load_state(paths: TargetPaths) -> dict[str, Any]:
     if state.get("slug") != paths.slug:
         raise RoundError(f"state slug does not match {paths.slug}")
     return state
+
+
+def validate_job_description(paths: TargetPaths, expected_family: str | None = None) -> str:
+    if not paths.jd.is_file():
+        raise RoundError(
+            f"job description is missing: {paths.jd}; run "
+            f"`python3 scripts/jobs.py prepare {paths.slug}` or populate it manually"
+        )
+    result = validate_document(paths.jd, paths.slug)
+    if not result.valid:
+        raise RoundError(
+            "job description is not ready: " + " | ".join(result.errors) + "; run "
+            f"`python3 scripts/jobs.py finalize {paths.slug}` after correcting it"
+        )
+    if expected_family and result.metadata.get("family") != expected_family:
+        raise RoundError(
+            f"job description family {result.metadata.get('family')!r} does not match "
+            f"optimization family {expected_family!r}"
+        )
+    return sha256_text(paths.jd)
+
+
+def assert_job_description_frozen(paths: TargetPaths, state: dict[str, Any]) -> None:
+    expected = state.get("job_description", {}).get("sha256")
+    actual = validate_job_description(paths, state.get("family"))
+    if not expected or actual != expected:
+        raise RoundError(
+            "job description changed after baseline; use a new slug, or archive the old "
+            "state and rerun the baseline panel/init workflow"
+        )
 
 
 def validate_panel_metadata(panel: dict[str, Any]) -> None:
@@ -256,9 +288,10 @@ def init_target(
     if paths.state.exists():
         raise RoundError(f"state already exists: {paths.state}")
     ensure_log_ready(paths.log)
-    for required in (paths.jd, paths.canonical, paths.output_pdf, paths.provenance):
+    for required in (paths.canonical, paths.output_pdf, paths.provenance):
         if not required.is_file():
             raise RoundError(f"baseline prerequisite is missing: {required}")
+    jd_sha256 = validate_job_description(paths, family)
     provenance = validate_provenance(paths.canonical, paths.provenance, paths.root)
     if not provenance["passed"]:
         raise RoundError("baseline provenance failed: " + " | ".join(provenance["errors"]))
@@ -267,12 +300,18 @@ def init_target(
     scores = panel_scores(panel)
     if not _input_hash_matches(paths, "incumbent", panel.get("input", {}).get("candidate_sha256")):
         raise RoundError("baseline panel hash does not match the canonical resume")
+    if panel.get("input", {}).get("jd_sha256") != jd_sha256:
+        raise RoundError("baseline panel job-description hash does not match the frozen target")
     state = {
         "schema_version": STATE_SCHEMA_VERSION,
         "slug": paths.slug,
         "family": family,
         "status": "initializing",
         "round": 0,
+        "job_description": {
+            "path": relative_or_string(paths.root, paths.jd),
+            "sha256": jd_sha256,
+        },
         "canonical": {
             "sha256": sha256_text(paths.canonical),
             "scores": scores,
@@ -308,6 +347,7 @@ def start_round(paths: TargetPaths, hypothesis: str) -> dict[str, Any]:
         raise RoundError(f"cannot start while target status is {state['status']}")
     if not paths.canonical.is_file() or not paths.provenance.is_file():
         raise RoundError("canonical resume or provenance manifest is missing")
+    assert_job_description_frozen(paths, state)
     if sha256_text(paths.canonical) != state["canonical"]["sha256"]:
         raise RoundError("canonical resume changed outside the orchestrator; re-baseline explicitly")
     if paths.candidate.exists() or paths.candidate_provenance.exists():
@@ -334,6 +374,7 @@ def run_gate(paths: TargetPaths, max_pages: int) -> dict[str, Any]:
         raise RoundError(f"cannot gate while target status is {state['status']}")
     if not paths.candidate.is_file() or not paths.candidate_provenance.is_file():
         raise RoundError("candidate resume or provenance manifest is missing")
+    assert_job_description_frozen(paths, state)
 
     compile_proc = subprocess.run(
         [str(paths.root / "scripts" / "compile.sh"), str(paths.candidate), str(max_pages)],
@@ -424,6 +465,7 @@ def finish_round(
         raise RoundError("candidate must pass round.py gate before finish")
     if sha256_text(paths.candidate) != state["pending"]["gate"]["candidate_sha256"]:
         raise RoundError("candidate changed after the gate; run the gate again")
+    assert_job_description_frozen(paths, state)
     panel = load_json(panel_path)
     validate_panel_target(panel, paths.slug, state["family"])
     if not panel.get("panel", {}).get("valid"):
@@ -436,6 +478,8 @@ def finish_round(
         raise RoundError("panel candidate hash does not match the gated candidate")
     if not _input_hash_matches(paths, "incumbent", input_meta.get("incumbent_sha256")):
         raise RoundError("panel incumbent hash does not match the canonical resume")
+    if input_meta.get("jd_sha256") != state["job_description"]["sha256"]:
+        raise RoundError("panel job-description hash does not match the frozen target")
     flags = _flag_values(panel)
     if flags and not flags_resolved:
         raise RoundError("candidate has unresolved reviewer flags: " + " | ".join(flags))
