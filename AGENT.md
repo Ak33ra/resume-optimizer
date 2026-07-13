@@ -44,8 +44,9 @@ keep only what scores higher → log each round → repeat. You never invent fac
 - Inputs: `source_material/` (the user's true facts — per-section files like
   `EXPERIENCE.md`, `PROJECTS.md`, `EDUCATION.md`, plus any master resume;
   gitignored), and `job_descriptions/<slug>.md` (targets).
-- Output: `resumes/<slug>_resume.tex` + `.pdf` (canonical, one per posting,
-  gitignored). Round history: `optimization_log.md` (committed).
+- Output: LaTeX source `resumes/<slug>_resume.tex` + the ready-to-submit PDF
+  `outputs/<slug>_resume.pdf` (canonical, one per posting, gitignored). Round
+  history: `optimization_log.md` (committed).
 - Template: `resume_template.tex`.
 - Optional independent verification: `benchmarks/` (third-party parse-safety +
   keyword-coverage + semantic scoring) — use it to sanity-check your own scores.

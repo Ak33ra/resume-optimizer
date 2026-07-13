@@ -54,7 +54,8 @@ Extract and note (do not put PII here):
   `resume_template.tex` before filling them. Save as
   `resumes/<slug>_resume.tex`, compile, gate, and score it — this becomes the
   baseline, logged as **round 1 with `decision: baseline`** (there's no
-  incumbent to compare against).
+  incumbent to compare against). Publish its PDF as the current deliverable:
+  `mkdir -p outputs && cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf`.
 
 ## 4. Round loop
 
@@ -96,9 +97,11 @@ weights).
 
 **4e. Decide** (`CRITERIA.md` KEEP/REVERT rule).
 - **KEEP** (composite up ≥ +1.0, no dimension down > 5, gate passes): promote the
-  candidate to canonical, recompile it, remove the leftover candidate artifacts
-  (`rm -f resumes/<slug>_resume.candidate.*`), append a KEEP entry to
-  `optimization_log.md`, and commit the log (`CONSTRAINTS.md` §7).
+  candidate to canonical, recompile it, **publish the deliverable**
+  (`mkdir -p outputs && cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf`),
+  remove the leftover candidate artifacts (`rm -f resumes/<slug>_resume.candidate.*`),
+  append a KEEP entry to `optimization_log.md`, and commit the log
+  (`CONSTRAINTS.md` §7).
 - **REVERT** (otherwise): discard the candidate, append a REVERT entry to the
   log, leave canonical untouched. No commit needed.
 
@@ -123,7 +126,7 @@ For extra confidence (or when the user wants proof), cross-check the canonical
 resume with the third-party scorers in `benchmarks/`:
 
 ```bash
-python3 benchmarks/benchmark.py resumes/<slug>_resume.pdf --jd job_descriptions/<slug>.md --slug <slug> --round <N>
+python3 benchmarks/benchmark.py outputs/<slug>_resume.pdf --jd job_descriptions/<slug>.md --slug <slug> --round <N>
 python3 benchmarks/report.py --slug <slug>      # before/after delta table
 ```
 
@@ -138,7 +141,7 @@ After each target (and at the end), summarize for the user:
 - What changed across rounds (from the log).
 - The **open gaps / questions** — the highest-value thing the user can do next
   (supply a metric, confirm a skill) to raise the score further.
-- Where the deliverable is: `resumes/<slug>_resume.pdf`.
+- Where the deliverable is: `outputs/<slug>_resume.pdf` (ready to submit).
 
 ---
 
@@ -150,6 +153,6 @@ hypothesize → cp canonical → candidate; edit candidate
   → scripts/ats_check.py candidate.pdf --keywords resumes/<slug>.kw.txt  # gate: ATS structure (coverage advisory)
   → verifier confirms no fabrication         # gate: truthfulness (verifier sees source_material)
   → panel of ≥3 independent verifiers score (median)   # CRITERIA Stage 2
-  → KEEP  : mv candidate → canonical; recompile; rm candidate.*; log; git commit
+  → KEEP  : mv candidate → canonical; recompile; cp pdf → outputs/; rm candidate.*; log; git commit
     REVERT: rm candidate.*; log
 ```

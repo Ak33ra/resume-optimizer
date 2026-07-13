@@ -19,8 +19,8 @@ human reviewers).
 pip install -r benchmarks/requirements.txt
 python -m spacy download en_core_web_lg          # ~600MB, enables SkillNER coverage
 
-# per round, on the compiled candidate PDF:
-python3 benchmarks/benchmark.py resumes/<slug>_resume.pdf \
+# per round, on the published PDF:
+python3 benchmarks/benchmark.py outputs/<slug>_resume.pdf \
         --jd job_descriptions/<slug>.md --slug <slug> --round <N>
 
 # see improvement across rounds:

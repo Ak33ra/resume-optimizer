@@ -21,7 +21,7 @@ source_material/  (your true experience)          job_descriptions/<slug>.md  (a
         └───────────────────────────────────────────────────┘
                           |
                           v
-   resumes/<slug>_resume.pdf   +   optimization_log.md (score history, no contact PII)
+   outputs/<slug>_resume.pdf   +   optimization_log.md (score history, no contact PII)
 ```
 
 The agent tailors truthfully (it only ever uses facts from your
@@ -59,7 +59,8 @@ Your resumes and source material stay **local** by default (gitignored). See
 |--------|-----------|-----------|
 | `source_material/` | Everything true about you — your master resume and per-section facts (copy the `*.example.md` templates). The agent's only source of truth. | Local by default; private fork only (PII). |
 | `job_descriptions/` | One file per role you're targeting — paste the full posting. | Yes (public postings). |
-| `resumes/` | *Generated for you* — the tailored `<slug>_resume.tex`/`.pdf`. | Local by default; private fork only (PII). |
+| `resumes/` | *Generated for you* — the tailored LaTeX **source** `<slug>_resume.tex` (+ transient build files). | Local by default; private fork only (PII). |
+| `outputs/` | *Generated for you* — the ready-to-submit **PDF** `<slug>_resume.pdf` (published on baseline + every KEEP). | Local by default; private fork only (PII). |
 | `optimization_log.md` | *Written by the agent* — score + change-note history of each round (no contact PII). | Yes. |
 
 ## Usage
@@ -73,7 +74,7 @@ to optimize for — for example:
 The agent reads `AGENT.md`, then follows `OPTIMIZATION_LOOP.md`. If you don't
 name targets, it will ask which company/role to focus on. When it needs a metric
 or a skill it can't find in your material, it will ask rather than make something
-up. Each result is `resumes/<slug>_resume.pdf`.
+up. Each finished resume lands in `outputs/<slug>_resume.pdf`, ready to submit.
 
 ## What's in here
 
@@ -91,7 +92,7 @@ up. Each result is `resumes/<slug>_resume.pdf`.
 | `scripts/` | `compile.sh` (compile + page count), `ats_check.py` (parse-safety + keyword coverage), `hooks/pre-push` (PII guard). |
 | `benchmarks/` | Independent third-party scoring to verify efficacy (parse-safety, keyword coverage, semantic match). |
 | `optimization_log.md` | Committed score history of every round. |
-| `source_material/`, `job_descriptions/`, `resumes/` | Your inputs and outputs. |
+| `source_material/`, `job_descriptions/`, `resumes/`, `outputs/` | Your inputs (`source_material/`, `job_descriptions/`) and generated outputs (`resumes/` sources, `outputs/` final PDFs). |
 
 ## Verifying it works
 

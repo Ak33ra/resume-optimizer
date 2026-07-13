@@ -108,8 +108,8 @@ haven't parse-checked.
 git add optimization_log.md
 git commit -m "optimize(<slug>): round N — composite A→B (KEEP)"
 
-# Never stage resumes/ or source_material/ — they're gitignored; verify:
-git status --porcelain            # resumes/ and source_material/ must not appear
+# Never stage resumes/, outputs/, or source_material/ — they're gitignored; verify:
+git status --porcelain            # these dirs must not appear
 ```
 
 ## Candidate ↔ canonical file workflow (the rollback mechanism)
@@ -120,11 +120,13 @@ cp resumes/<slug>_resume.tex resumes/<slug>_resume.candidate.tex   # or create t
 
 # ... edit + compile + score the candidate ...
 
-# KEEP: promote candidate to canonical, recompile canonical:
+# KEEP: promote candidate to canonical, recompile, publish the deliverable PDF:
 mv resumes/<slug>_resume.candidate.tex resumes/<slug>_resume.tex
 scripts/compile.sh resumes/<slug>_resume.tex
+mkdir -p outputs && cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf   # ready-to-submit PDF
+rm -f resumes/<slug>_resume.candidate.*
 
-# REVERT: just discard the candidate:
+# REVERT: just discard the candidate (outputs/ keeps the last good PDF):
 rm -f resumes/<slug>_resume.candidate.*
 ```
 

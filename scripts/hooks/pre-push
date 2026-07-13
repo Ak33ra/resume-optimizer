@@ -43,7 +43,7 @@ scan_commit() {   # $1 = tip sha, $2 = newline/space-separated file list
   # (a) protected-directory files (allow READMEs + example templates + .gitkeep)
   local pii_files
   pii_files=$(printf '%s\n' $files \
-    | grep -E '^(resumes|source_material|benchmarks/ground_truth|benchmarks/results|benchmarks/external)/' \
+    | grep -E '^(resumes|outputs|source_material|benchmarks/ground_truth|benchmarks/results|benchmarks/external)/' \
     | grep -Ev '(^|/)README\.md$|\.example\.(md|yaml)$|/\.gitkeep$')
   if [ -n "$pii_files" ]; then
     problems="${problems}${nl}  PII files being pushed:${nl}$(printf '%s\n' "$pii_files" | sed 's/^/    /')"

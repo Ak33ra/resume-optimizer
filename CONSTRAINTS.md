@@ -74,21 +74,25 @@ verification commands in `TOOLS.md`.
 
 ## 5. One canonical resume per posting
 
-- Exactly one running resume per job: `resumes/<slug>_resume.tex` (+ its
-  `.pdf`). The `<slug>` matches `job_descriptions/<slug>.md`.
+- Exactly one running resume per job: the LaTeX source
+  `resumes/<slug>_resume.tex` and its published PDF `outputs/<slug>_resume.pdf`
+  (the ready-to-submit deliverable). The `<slug>` matches
+  `job_descriptions/<slug>.md`.
 - Round work happens on a transient `resumes/<slug>_resume.candidate.tex`. The
-  canonical file is overwritten **only** when a round is a KEEP (this is the
-  rollback mechanism — no git needed for the `.tex`).
+  canonical source is overwritten — and the PDF in `outputs/` re-published —
+  **only** when a round is a KEEP (this is the rollback mechanism — no git needed
+  for the `.tex`). A REVERT leaves both the canonical `.tex` and the `outputs/`
+  PDF untouched.
 
 ## 6. Privacy (see `PRIVACY.md`)
 
 This repo is a **public skeleton**; personal data lives in a **private fork**.
 
-- `resumes/` and `source_material/` are gitignored by default and contain PII.
-  In a clone of the public skeleton, **never** commit their contents. Only in
-  the user's **private fork** (private `origin`, `resumeopt.allowPII true`) may
-  they be version-controlled — and even then never pushed to the public
-  upstream.
+- `resumes/`, `outputs/`, and `source_material/` are gitignored by default and
+  contain PII. In a clone of the public skeleton, **never** commit their
+  contents. Only in the user's **private fork** (private `origin`,
+  `resumeopt.allowPII true`) may they be version-controlled — and even then
+  never pushed to the public upstream.
 - **Never push PII to a public remote**, and never put raw contact PII
   (name/email/phone) in any file that could reach one. The `pre-push` guardrail
   (`scripts/hooks/pre-push`) blocks this, but don't rely on it alone.

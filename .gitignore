@@ -7,6 +7,9 @@
 resumes/*
 !resumes/README.md
 
+outputs/*
+!outputs/README.md
+
 source_material/*
 !source_material/README.md
 !source_material/*.example.md
@@ -22,6 +25,7 @@ source_material/*
 #  Alternatively, leave these commented and `git add -f` files deliberately.
 # ----------------------------------------------------------------------------
 # !resumes/*
+# !outputs/*
 # !source_material/*
 
 # ============================================================================
