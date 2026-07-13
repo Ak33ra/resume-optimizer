@@ -27,14 +27,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(HERE, "results")
-
-# Keep in sync with scripts/ats_check.py ALLOWED_HEADINGS and CONSTRAINTS.md sec 4.
-STANDARD_HEADINGS = [
-    "education", "experience", "work experience", "professional experience",
-    "employment", "skills", "technical skills", "projects", "certifications",
-    "summary", "publications", "research", "awards", "honors", "leadership",
-    "volunteer",
-]
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "scripts"))
+from ats_rules import ALLOWED_HEADINGS  # noqa: E402
 
 # Built-in fallback lexicon (curated from the toolkit's research notes). Used
 # only when SkillNer is not installed. Lowercase; multi-word allowed.
@@ -153,7 +147,7 @@ def parse_safety(text: str) -> dict:
             or re.search(r"(github|linkedin|scholar|http)", head, re.I)),
         "standard_headings": sum(
             bool(re.search(r"(?m)^\s*" + re.escape(h) + r"\s*$", text.lower()))
-            for h in STANDARD_HEADINGS) >= 3,
+            for h in ALLOWED_HEADINGS) >= 3,
     }
     passed = sum(checks.values())
     return {"score_pct": round(100 * passed / len(checks)), "checks": checks}
