@@ -81,6 +81,12 @@ anything that reads as machine-generated (`CONSTRAINTS.md` §8).
   resume (PDF text + `.tex`), the JD, the target family, and this rubric, but
   **not** the other verifiers' scores or the change description. This prevents
   anchoring and catches different failure modes.
+- **Independence spectrum (weakest → strongest):** (a) ≥3 fresh passes in one
+  context (simulated); (b) ≥3 independent subagents of your optimizer's model;
+  (c) reviewers from **different model families** (e.g. Codex, Gemini) via
+  `scripts/panel_review.py`. Same-model reviewers share training biases, so their
+  scores are *correlated*; a different family is a more statistically independent
+  estimator. Prefer (c) when available — see `docs/cross-agent-review.md`.
 - Each verifier returns: the gate result, a 0–100 score per dimension with a
   one-line justification, the composite, and any fabrication/keyword/format
   flags.

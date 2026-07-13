@@ -92,6 +92,14 @@ weights).
 >   in **≥3 separate passes** that each start fresh from the rubric alone, and
 >   record `panel: simulated` in the log entry. This is weaker — prefer real
 >   independence.
+> - **Cross-agent (strongest):** if other coding-agent CLIs are installed (Codex,
+>   Gemini, …), score with them too — different model families give *decorrelated*
+>   signal. Run
+>   `python3 scripts/panel_review.py <candidate.pdf|.tex> --jd <jd> --family <fam>`;
+>   fold its composite into the decision (KEEP only if your own panel *and* the
+>   cross-agent panel clear the margin, or take the median across all reviewers)
+>   and note it in the log, e.g. `panel: claude x3 + codex`. See
+>   `docs/cross-agent-review.md`.
 > - **Aggregate:** median per dimension; with an even count, average the two
 >   middle values. Compute the composite from the medians.
 

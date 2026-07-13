@@ -93,7 +93,7 @@ up. Each finished resume lands in `outputs/<slug>_resume.pdf`, ready to submit.
 | `TOOLS.md` | Exact build & verification commands. |
 | `PRIVACY.md` | Public-skeleton / private-fork model + PII guardrails. |
 | `resume_template.tex` | The single-column, ATS-safe LaTeX template (Jake's Resume). |
-| `scripts/` | `compile.sh` (compile + page count), `ats_check.py` (parse-safety + keyword coverage), `hooks/pre-push` (PII guard). |
+| `scripts/` | `compile.sh` (compile + page count), `ats_check.py` (parse-safety + keyword coverage), `panel_review.py` (cross-agent independent review), `hooks/pre-push` (PII guard). |
 | `benchmarks/` | Independent third-party scoring to verify efficacy (parse-safety, keyword coverage, semantic match). |
 | `optimization_log.md` | Committed score history of every round. |
 | `source_material/`, `job_descriptions/`, `resumes/`, `outputs/` | Your inputs (`source_material/`, `job_descriptions/`) and generated outputs (`resumes/` sources, `outputs/` final PDFs). |
@@ -105,6 +105,12 @@ Beyond the built-in scoring, `benchmarks/` cross-checks each resume with
 script (`benchmark.py`), plus pointers to free tools like OpenResume, Jobalytics,
 and Jobscan. The proof is the before→after delta across rounds, not any single
 number. See [`benchmarks/README.md`](benchmarks/README.md).
+
+**Multiple coding agents?** If you have others on your CLI (Codex, Gemini, …),
+`scripts/panel_review.py` runs them as *independent* reviewers of a resume — a
+different model family gives statistically decorrelated scores that de-bias the
+keep/revert decision, which a second copy of your own model can't. See
+[`docs/cross-agent-review.md`](docs/cross-agent-review.md).
 
 ## Principles
 

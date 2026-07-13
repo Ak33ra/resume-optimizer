@@ -49,7 +49,9 @@ keep only what scores higher → log each round → repeat. You never invent fac
   history: `optimization_log.md` (committed).
 - Template: `resume_template.tex`.
 - Optional independent verification: `benchmarks/` (third-party parse-safety +
-  keyword-coverage + semantic scoring) — use it to sanity-check your own scores.
+  keyword-coverage + semantic scoring); and `scripts/panel_review.py` to score
+  with **other** CLI agents (Codex/Gemini) for decorrelated review when the user
+  has them (`docs/cross-agent-review.md`).
 - Privacy model & guardrails: `PRIVACY.md`.
 
 When the user tells you which jobs to optimize for, begin at
