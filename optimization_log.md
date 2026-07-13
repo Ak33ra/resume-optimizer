@@ -1,52 +1,45 @@
 # Optimization Log
 
-The **committed** record of every optimization round — the version history of
-your tailoring work (`CONSTRAINTS.md` §7).
+Committed summary of baseline and round decisions. `scripts/round.py` prepends
+entries under `## Rounds`; detailed local state and panel JSON stay in
+`resumes/`.
 
-**Rules for the agent**
-- Append one entry per round, **newest first**, under `## Rounds`.
-- Record the verifier-panel scores (before → after), a one-line description of
-  what changed, and the KEEP/REVERT decision.
-- Keep entries to **scores + change descriptions**. Referencing your own resume
-  specifics (which bullet, which metric) is fine and useful in a private fork,
-  but **never** put raw contact PII (name/email/phone) here. The `pre-push`
-  guardrail blocks that from reaching a public remote (`PRIVACY.md`).
-- On a **KEEP**, commit this file (see the commit protocol in `CONSTRAINTS.md`).
-  On a **REVERT**, still log the round, discard the candidate `.tex`, and do not
-  update the canonical resume.
+Rules:
 
-## Entry format
+- Decisions are `BASELINE`, `KEEP`, or `REVERT`.
+- Record family, before/after scores, complete gate status, panel type and
+  reviewers, decision threshold, benchmark path/result, hypothesis, change, and
+  gap IDs/questions.
+- Never include raw contact PII. Resume-specific change descriptions are fine in
+  a private fork.
+- Commit this file after each KEEP. REVERT entries may remain uncommitted until
+  the next KEEP or an explicit history checkpoint.
 
-```
-### <slug> — round <N> — <YYYY-MM-DD>
-- family: <big_tech|quant_swe|quant_research|quant_trading|research_lab|startup|other>
-- composite: <before> → <after>   (decision: KEEP | REVERT)
-- scores (before → after): relevance <> → <>, ats <> → <>, impact <> → <>, credibility <> → <>, writing <> → <>, formatting <> → <>
-- gate: compiles ✓ | 1 page ✓ | no-fabrication ✓
-- change: <one line — e.g. "reordered Experience above Projects; added 'distributed systems', 'gRPC' from JD; tightened 3 bullets to impact-first">
-- open gaps/questions to user: <none | short note>
+## Entry formats
+
+```text
+### <slug> - baseline - <YYYY-MM-DD>
+- family: <family>
+- composite: <score> (decision: BASELINE)
+- scores: relevance <>, ats <>, impact <>, credibility <>, writing <>, formatting <>
+- gate: compile/page/ATS PASS | provenance PASS | no-fabrication PASS
+- panel: <cross-family|correlated/simulated> [reviewer:family, ...]
+- benchmark: <path/result | not recorded>
+- change: established canonical baseline
+- open gaps/questions to user: <none | gap IDs and questions>
+
+### <slug> - round <N> - <YYYY-MM-DD>
+- family: <family>
+- composite: <before> -> <after> (decision: KEEP | REVERT)
+- scores (before -> after): relevance <> -> <>, ats <> -> <>, impact <> -> <>, credibility <> -> <>, writing <> -> <>, formatting <> -> <>
+- gate: compile/page PASS | ATS PASS | provenance PASS | no-fabrication PASS
+- panel: <type and reviewers>; threshold <+1.0|+2.0>
+- benchmark: <path/result | not recorded>
+- hypothesis: <one focused expected improvement>
+- change: <one line describing the actual edit>
+- open gaps/questions to user: <none | gap IDs and questions>
 ```
 
 ## Rounds
 
-<!-- newest first; agent appends here -->
-
-<!--
-EXAMPLE (fictional — delete once real rounds exist):
-
-### google_swe_intern — round 2 — 2026-07-12
-- family: big_tech
-- composite: 81 → 87   (decision: KEEP)
-- scores (before → after): relevance 78 → 88, ats 84 → 90, impact 80 → 84, credibility 82 → 85, writing 83 → 86, formatting 88 → 88
-- gate: compiles ✓ | 1 page ✓ | no-fabrication ✓
-- change: moved Experience above Projects; surfaced "distributed systems"/"gRPC" from JD in existing bullets; rewrote 3 bullets to lead with quantified impact
-- open gaps/questions to user: none
-
-### google_swe_intern — round 3 — 2026-07-12
-- family: big_tech
-- composite: 87 → 85   (decision: REVERT)
-- scores (before → after): relevance 88 → 84, ats 90 → 90, impact 84 → 82, credibility 85 → 84, writing 86 → 85, formatting 88 → 88
-- gate: compiles ✓ | 1 page ✓ | no-fabrication ✓
-- change: attempted a Summary section — pushed a bullet off-page and diluted relevance; reverted
-- open gaps/questions to user: none
--->
+<!-- newest first; scripts/round.py writes entries here -->

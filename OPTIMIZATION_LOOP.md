@@ -1,166 +1,196 @@
 # OPTIMIZATION LOOP
 
-The round-based procedure the agent follows to tailor a resume to a job and
-iterate until it stops improving. Read `CONSTRAINTS.md`, `CRITERIA.md`,
-`WRITING_GUIDE.md`, and `ROLE_PROFILES.md` before starting; use `TOOLS.md` for
-the exact commands.
-
-The core idea: **one change at a time, verified by an independent panel, keeping
-only what scores higher.** Every claim stays truthful (`CONSTRAINTS.md` §1).
-
----
+The enforced, round-based procedure for tailoring one resume to one job. Read
+`CONSTRAINTS.md`, `CRITERIA.md`, `WRITING_GUIDE.md`, and `ROLE_PROFILES.md`
+first. `scripts/round.py` owns state transitions and file promotion; the agent
+owns hypotheses, edits, and source-aware judgment.
 
 ## 0. Preconditions
 
-- `source_material/` has the user's real material. If it contains **no real
-  `*.md`** (only the shipped `*.example.md` templates), treat it as empty: stop
-  and ask the user to fill in the templates (`source_material/README.md`).
-  **Never draft from placeholder scaffolds.**
-- `job_descriptions/` has at least one target. If empty, ask the user to add
-  postings.
-- `pdflatex` is available (`TOOLS.md`). Recommend `poppler-utils` / `pypdf` for
-  the ATS checks.
+- `source_material/` contains real user material, not only `*.example.md`.
+- `job_descriptions/<slug>.md` contains the full target posting.
+- `pdflatex` is installed. Install `pypdf` or poppler for PDF text checks.
+- Choose the role `family` and the optimizer's model family (`openai`, `google`,
+  `anthropic`, or `other`).
 
-## 1. Select targets
+If the target or family is ambiguous, ask. Never draft from placeholders or
+invent information to fill a gap.
 
-- Optimize **only** the postings that fit the user's instructions. If they said
-  "target Jane Street and Anthropic," do only those.
-- **If the user gave no preference, ask** which company / role / family to target
-  before doing any work — don't guess or optimize everything.
-- For each chosen posting, fix its `<slug>` (matches the JD filename) and
-  determine its `family` (from JD front-matter, else infer, else ask) — this
-  selects the profile in `ROLE_PROFILES.md` and the weight adjustments in
-  `CRITERIA.md`.
+## 1. Parse the target
 
-## 2. Parse the JD
+Extract the seniority, responsibilities, qualifications, and roughly 12-20
+high-value terms in the JD's exact phrasing. Save the terms one per line in
+`resumes/<slug>.kw.txt`; keyword coverage is advisory, not a truth override.
 
-Extract and note (do not put PII here):
-- Role family + seniority (intern / new_grad / experienced).
-- Responsibilities and required/preferred qualifications.
-- The **top ~12–20 keywords** in the JD's exact phrasing (skills, tools,
-  methods, qualifications). Save them (one per line) to `resumes/<slug>.kw.txt`
-  (per-target so parallel targets don't collide; already gitignored) for
-  `scripts/ats_check.py --keywords`.
+## 2. Establish provenance
+
+Every active `\resumeSubheading`, `\resumeSubSubheading`,
+`\resumeProjectHeading`, and `\resumeItem` in a generated resume must have an
+immediately preceding claim marker:
+
+```tex
+% source: acme-latency
+\resumeItem{Reduced request latency by 30\% through cache redesign}
+```
+
+Map those IDs in `resumes/<slug>_provenance.json`:
+
+```json
+{
+  "schema_version": 1,
+  "claims": {
+    "acme-latency": {
+      "sources": [{
+        "file": "source_material/EXPERIENCE.md",
+        "section": "Acme / latency project",
+        "evidence": "Reduced latency by 30 percent after redesigning the cache."
+      }]
+    }
+  }
+}
+```
+
+The evidence must be a real excerpt found in the named file. This provides an
+auditable trace, not semantic proof: a source-aware verifier must still confirm
+that every rendered claim, including skills and contact facts, is supported.
 
 ## 3. Establish the baseline
 
-- If `resumes/<slug>_resume.tex` already exists, it's the incumbent. Compile and
-  score it (steps 4c–4d) to get the current composite.
-- If not, generate the **first draft**: fill `resume_template.tex` from
-  `source_material/`, tailored to this JD using `WRITING_GUIDE.md` +
-  `ROLE_PROFILES.md` (right section order, strongest signal in the top third,
-  truthful keyword coverage). The template's custom macros document their
-  argument order inline — read the `\newcommand` comments in
-  `resume_template.tex` before filling them. Save as
-  `resumes/<slug>_resume.tex`, compile, gate, and score it — this becomes the
-  baseline, logged as **round 1 with `decision: baseline`** (there's no
-  incumbent to compare against). Publish its PDF as the current deliverable:
-  `mkdir -p outputs && cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf`.
-
-## 4. Round loop
-
-Repeat until a stopping criterion (§5) is hit. **One focused change per round.**
-
-**4a. Hypothesize.** Pick the single highest-leverage improvement, guided by the
-lowest-scoring dimension and the JD. Examples: surface true JD keywords into
-existing bullets; rewrite weak bullets to impact-first XYZ; reorder sections per
-the role profile; cut low-relevance content to free space; tighten wording to
-protect the one-page limit.
-
-**4b. Apply to a candidate.** Copy the canonical `.tex` to
-`resumes/<slug>_resume.candidate.tex` and edit the candidate only. The canonical
-file is never touched until a KEEP (this is the rollback mechanism — `TOOLS.md`).
-
-**4c. Fatal gate** (`CRITERIA.md` Stage 1). Run `scripts/compile.sh` (compiles +
-one page) and `scripts/ats_check.py` (selectable text, headings, contact,
-dates). Have a verifier confirm **no fabrication** vs `source_material/`. If the
-gate fails, fix the candidate or discard the change — never score or keep a gate
-failure. (Keyword coverage from `ats_check.py` is **advisory input to Stage-2
-scoring, not a gate** — don't discard a candidate for low coverage.)
-
-**4d. Score with the verifier panel** (`CRITERIA.md` Stage 2). Run the panel
-(see below); aggregate by median per dimension → composite (family-adjusted
-weights).
-
-> **Running the panel.** The verifiers must be *independent* judgments — you are
-> the optimizer, so you must not be the sole judge (`AGENT.md`).
-> - **Preferred:** launch **≥3** subagents/tasks in fresh contexts (whatever your
->   harness provides — e.g. the Task/Agent tool), each given ONLY the candidate
->   PDF text + `.tex`, the JD, the family, and `CRITERIA.md` — not each other's
->   scores nor your change rationale.
-> - **Single-context fallback:** if you cannot spawn independent contexts, score
->   in **≥3 separate passes** that each start fresh from the rubric alone, and
->   record `panel: simulated` in the log entry. This is weaker — prefer real
->   independence.
-> - **Cross-agent (strongest):** if other coding-agent CLIs are installed (Codex,
->   Gemini, …), score with them too — different model families give *decorrelated*
->   signal. Run
->   `python3 scripts/panel_review.py <candidate.pdf|.tex> --jd <jd> --family <fam>`;
->   fold its composite into the decision (KEEP only if your own panel *and* the
->   cross-agent panel clear the margin, or take the median across all reviewers)
->   and note it in the log, e.g. `panel: claude x3 + codex`. See
->   `docs/cross-agent-review.md`.
-> - **Aggregate:** median per dimension; with an even count, average the two
->   middle values. Compute the composite from the medians.
-
-**4e. Decide** (`CRITERIA.md` KEEP/REVERT rule).
-- **KEEP** (composite up ≥ +1.0, no dimension down > 5, gate passes): promote the
-  candidate to canonical, recompile it, **publish the deliverable**
-  (`mkdir -p outputs && cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf`),
-  remove the leftover candidate artifacts (`rm -f resumes/<slug>_resume.candidate.*`),
-  append a KEEP entry to `optimization_log.md`, and commit the log
-  (`CONSTRAINTS.md` §7).
-- **REVERT** (otherwise): discard the candidate, append a REVERT entry to the
-  log, leave canonical untouched. No commit needed.
-
-**4f. Record gaps.** If the JD wanted something the source material doesn't
-support, add it to the round's "Open gaps / questions for the user" — never
-invent it.
-
-## 5. Stopping criteria
-
-Stop optimizing a target when any holds:
-- **Plateau:** 3 consecutive rounds with no KEEP.
-- **Diminishing returns:** the last KEEP's composite gain was < 2.0 and all
-  dimensions are ≥ 85.
-- **Ceiling:** composite ≥ ~92 and no dimension < 85.
-- **Blocked on the user:** the only remaining improvements need info from the
-  gaps list — surface them and pause this target.
-- **Round cap:** ~8 rounds per target (raise only if still clearly improving).
-
-## 5b. Optional — independent benchmark
-
-For extra confidence (or when the user wants proof), cross-check the canonical
-resume with the third-party scorers in `benchmarks/`:
+Create or inspect `resumes/<slug>_resume.tex`, its provenance manifest, and the
+keyword file. Compile and gate the canonical source:
 
 ```bash
-python3 benchmarks/benchmark.py outputs/<slug>_resume.pdf --jd job_descriptions/<slug>.md --slug <slug> --round <N>
-python3 benchmarks/report.py --slug <slug>      # before/after delta table
+scripts/compile.sh resumes/<slug>_resume.tex
+python3 scripts/ats_check.py resumes/<slug>_resume.pdf \
+  --tex resumes/<slug>_resume.tex --keywords resumes/<slug>.kw.txt
+python3 scripts/provenance_check.py resumes/<slug>_resume.tex \
+  --manifest resumes/<slug>_provenance.json
+mkdir -p outputs
+cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf
 ```
 
-Treat these as an independent sanity check on your own scores, not the source of
-truth — trust the round-over-round delta, and never optimize to a single tool's
-number (`benchmarks/README.md`).
+After a source-aware no-fabrication check, collect a strict baseline panel. Use
+three reviewers by default and record the result locally:
 
-## 6. Report
+```bash
+python3 scripts/panel_review.py resumes/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family <model-family> --slug <slug> \
+  --output resumes/<slug>_baseline.panel.json
 
-After each target (and at the end), summarize for the user:
-- Final composite and per-dimension scores; the delta from baseline.
-- What changed across rounds (from the log).
-- The **open gaps / questions** — the highest-value thing the user can do next
-  (supply a metric, confirm a skill) to raise the score further.
-- Where the deliverable is: `outputs/<slug>_resume.pdf` (ready to submit).
-
----
-
-### Quick reference — one round
-
+python3 scripts/round.py init <slug> --family <family> \
+  --panel resumes/<slug>_baseline.panel.json --truth-check passed
 ```
-hypothesize → cp canonical → candidate; edit candidate
-  → scripts/compile.sh candidate            # gate: compiles + 1 page
-  → scripts/ats_check.py candidate.pdf --keywords resumes/<slug>.kw.txt  # gate: ATS structure (coverage advisory)
-  → verifier confirms no fabrication         # gate: truthfulness (verifier sees source_material)
-  → panel of ≥3 independent verifiers score (median)   # CRITERIA Stage 2
-  → KEEP  : mv candidate → canonical; recompile; cp pdf → outputs/; rm candidate.*; log; git commit
-    REVERT: rm candidate.*; log
+
+Initialization verifies the panel's family, slug, artifact hash, provenance,
+and validity. It writes `resumes/<slug>.state.json` and a `BASELINE` log entry.
+
+## 4. Run one focused round
+
+### 4a. Hypothesize and start
+
+Pick one high-leverage change. Then let the orchestrator copy both canonical
+files and record the starting hash:
+
+```bash
+python3 scripts/round.py start <slug> \
+  --hypothesis "surface the strongest distributed-systems evidence"
 ```
+
+Edit only:
+
+- `resumes/<slug>_resume.candidate.tex`
+- `resumes/<slug>_provenance.candidate.json`
+
+### 4b. Gate
+
+Run a source-aware truth check, then attest it while running all mechanical
+gates. The command compiles the candidate, checks page count, checks rendered
+PDF text and LaTeX structure, checks keywords, and validates provenance.
+
+```bash
+python3 scripts/round.py gate <slug> --truth-check passed
+```
+
+Use `--max-pages 2` only for the explicitly approved research-CV exception. A
+gate failure must be fixed and rerun before scoring.
+
+### 4c. Score the incumbent and candidate together
+
+Use paired blind scoring so each reviewer sees both artifacts under neutral A/B
+labels, without the hypothesis or edit rationale. Resume order alternates across
+reviewers to reduce positional bias.
+
+```bash
+python3 scripts/panel_review.py resumes/<slug>_resume.candidate.pdf \
+  --baseline resumes/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family <model-family> --slug <slug> \
+  --output resumes/<slug>_r<N>.panel.json
+```
+
+The normal `+1.0` KEEP margin applies only when at least two completed reviewer
+families differ from the optimizer family. Correlated or simulated panels use
+`+2.0`. Three completed reviewers are required unless the user explicitly
+accepts a weaker panel with `--min-reviewers`.
+
+### 4d. Finish atomically
+
+```bash
+python3 scripts/round.py finish <slug> \
+  --panel resumes/<slug>_r<N>.panel.json \
+  --change "moved the existing distributed-systems bullet into the top third" \
+  --gap "Confirm whether the service handled more than 10k requests/day"
+```
+
+The finisher verifies that the panel hashes match the gated candidate and
+incumbent, recomputes policy, then:
+
+- `KEEP`: promotes source and provenance, publishes the exact gated PDF, cleans
+  candidate artifacts, updates state, and prepends the log entry.
+- `REVERT`: removes candidate artifacts, leaves canonical/output files intact,
+  updates state, and prepends the log entry.
+
+If reviewers raised flags, resolve them against source material and rerun the
+gate as needed. Pass `--review-flags-resolved` only after that review. Add
+`--benchmark <result.json>` when an independent benchmark was run.
+
+On a KEEP, commit `optimization_log.md` with:
+
+```text
+optimize(<slug>): round N - composite A->B (KEEP)
+```
+
+## 5. Manage gaps and stopping
+
+Open questions are structured in `<slug>.state.json`, not only prose in the
+log. Resolve one after the user supplies evidence:
+
+```bash
+python3 scripts/round.py resolve-gap <slug> r2-g1 \
+  --resolution "confirmed 14k requests/day" \
+  --source source_material/EXPERIENCE.md
+```
+
+Stop after three consecutive reverts, at a round cap near eight, when all useful
+changes are below the applicable score margin, or when only user-blocked gaps
+remain:
+
+```bash
+python3 scripts/round.py stop <slug> --reason "plateau after three reverts"
+```
+
+Use `python3 scripts/round.py status <slug>` to inspect the current round,
+canonical hash and score, panel metadata, history, and open gaps.
+
+## 6. Optional benchmark and final report
+
+```bash
+python3 benchmarks/benchmark.py outputs/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --slug <slug> --round <N>
+python3 benchmarks/report.py --slug <slug>
+```
+
+Benchmarks are sanity checks, not the truth source or KEEP/REVERT authority. The
+final user report should include the baseline-to-final score delta, retained
+changes, panel type, unresolved gaps, and `outputs/<slug>_resume.pdf`.

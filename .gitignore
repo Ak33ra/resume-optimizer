@@ -6,6 +6,7 @@
 # ============================================================================
 resumes/*
 !resumes/README.md
+!resumes/*.example.json
 
 outputs/*
 !outputs/README.md
@@ -22,6 +23,8 @@ source_material/*
 #  To turn it on, uncomment the two lines below (later rules override earlier
 #  ones, so this un-ignores your real files), then run once:
 #      git config resumeopt.allowPII true
+#      git config resumeopt.privateRemote origin
+#      git config resumeopt.privatePushUrl "$(git remote get-url --push origin)"
 #  Alternatively, leave these commented and `git add -f` files deliberately.
 # ----------------------------------------------------------------------------
 # !resumes/*

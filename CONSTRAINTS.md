@@ -56,7 +56,8 @@ verification commands in `TOOLS.md`.
   top — never in a header/footer.
 - **Standard section headings only:** Education, Experience (or Work Experience
   / Employment), Projects, Technical Skills, Publications, Research, Awards (or
-  Awards & Competitions), Honors, Leadership, Volunteer, Summary, Certifications.
+  Awards & Competitions), Honors, Leadership, Volunteer or Volunteering, Summary,
+  Certifications.
   Keep coursework *under* Education, not as its own heading. No creative headings
   ("My Toolkit", "Where I've Been"). This list is the allowlist enforced by
   `scripts/ats_check.py`.
@@ -83,6 +84,10 @@ verification commands in `TOOLS.md`.
   **only** when a round is a KEEP (this is the rollback mechanism — no git needed
   for the `.tex`). A REVERT leaves both the canonical `.tex` and the `outputs/`
   PDF untouched.
+- Each canonical/candidate source has a matching provenance manifest. Active
+  resume heading and bullet macros carry `% source: <claim-id>` markers whose
+  manifest entries point to evidence in `source_material/`. Provenance passing
+  is necessary but does not replace semantic no-fabrication review.
 
 ## 6. Privacy (see `PRIVACY.md`)
 
@@ -90,9 +95,8 @@ This repo is a **public skeleton**; personal data lives in a **private fork**.
 
 - `resumes/`, `outputs/`, and `source_material/` are gitignored by default and
   contain PII. In a clone of the public skeleton, **never** commit their
-  contents. Only in the user's **private fork** (private `origin`,
-  `resumeopt.allowPII true`) may they be version-controlled — and even then
-  never pushed to the public upstream.
+  contents. Only in the user's **private fork**, with one exact remote name and
+  push URL explicitly attested as private, may they be version-controlled.
 - **Never push PII to a public remote**, and never put raw contact PII
   (name/email/phone) in any file that could reach one. The `pre-push` guardrail
   (`scripts/hooks/pre-push`) blocks this, but don't rely on it alone.
@@ -105,13 +109,14 @@ This repo is a **public skeleton**; personal data lives in a **private fork**.
   + decision). Keep entries to scores and change *descriptions*; referencing
   your own resume specifics is fine and useful in a private fork, but never put
   raw contact PII there. See the log header for the entry format.
-- **On a KEEP:** update the canonical resume, append the log entry, and commit
-  the log (and any toolkit changes) directly to `main`. Message format:
-  `optimize(<slug>): round N — composite A→B (KEEP)`.
-- **On a REVERT:** still append the log entry (decision: REVERT), discard the
-  candidate file, leave the canonical resume untouched. No commit is required
-  for a revert, but if one was already made, `git revert` it — don't leave a
-  regression in history.
+- Use `scripts/round.py` for start/gate/finish so hashes, provenance, promotion,
+  cleanup, state, and log updates stay consistent.
+- **On a KEEP:** commit the log (and any requested toolkit changes) directly to
+  `main`. Message format: `optimize(<slug>): round N - composite A->B (KEEP)`.
+- **On a REVERT:** the orchestrator still appends the log entry, discards the
+  candidate pair, and leaves canonical/output files untouched. No commit is
+  required for a revert, but if one was already made, `git revert` it; do not
+  leave a regression in history.
 - Commit only when the user has asked you to optimize; don't push unless asked.
   In a private fork, resume/source files may also be committed (to the private
   origin) for history — see `PRIVACY.md`.

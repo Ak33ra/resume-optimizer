@@ -13,10 +13,16 @@ For a target with slug `<slug>` (e.g. `google_swe_intern`):
 |-----------------------------------|---------------------------------------------------------|
 | `resumes/<slug>_resume.tex`       | **Canonical** source. Only overwritten when a round scores higher (a KEEP). |
 | `resumes/<slug>_resume.candidate.tex` | Transient working copy for the round in progress. Deleted on KEEP/REVERT. |
+| `resumes/<slug>_provenance.json` | Canonical claim-ID to source-evidence map. |
+| `resumes/<slug>_provenance.candidate.json` | Transient provenance map edited with the candidate. |
+| `resumes/<slug>.state.json` | Local durable round state, hashes, scores, panel metadata, history, and gaps. |
+| `resumes/<slug>_r<N>.panel.json` | Strict paired reviewer result used for round N. |
 | `outputs/<slug>_resume.pdf`       | The compiled, ready-to-submit PDF (published on baseline + every KEEP). |
 
 Build artifacts (`.aux`, `.log`, and transient `.pdf` from compiles) also land
 here and are gitignored. The slug matches `../job_descriptions/<slug>.md`.
 
-One canonical resume per posting (see `CONSTRAINTS.md`). You start these by
-pointing the agent at a job description — nothing to create by hand.
+One canonical resume/provenance pair per posting (see `CONSTRAINTS.md`). Use
+`scripts/round.py` rather than manually copying or promoting candidate files.
+Copy `provenance.example.json` to `<slug>_provenance.json` when creating a
+baseline, then replace its sample claim IDs and evidence.

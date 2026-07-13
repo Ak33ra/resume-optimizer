@@ -1,8 +1,8 @@
 # CRITERIA
 
 How a resume is scored. The optimization loop uses this to decide whether a
-round's change is kept or reverted. Scoring is done by a **panel of independent
-verifier subagents** so no single perspective dominates.
+round's change is kept or reverted. Scoring is done by a **blind verifier
+panel** so no single perspective dominates.
 
 There are two stages: a **fatal gate** (pass/fail, checked first) and a
 **weighted score** (0–100 per dimension). A candidate that fails the gate is
@@ -19,9 +19,9 @@ score it, do not log it as a KEEP. Commands to check the mechanical ones are in
 1. **Compiles** cleanly with `pdflatex` (no errors).
 2. **Exactly one page** (`CONSTRAINTS.md` §2).
 3. **No fabrication** — every claim traces to `source_material/`
-   (`CONSTRAINTS.md` §1). This is a judgment check by a verifier, and it is the
-   most important gate: a resume that scores 95 but contains an invented metric
-   is a fail.
+   (`CONSTRAINTS.md` §1). The provenance manifest must pass its mechanical check,
+   and a source-aware verifier must confirm the semantics. This is the most
+   important gate.
 4. **Machine-selectable text** — extraction yields clean text, no `�` / broken
    ligatures (`CONSTRAINTS.md` §4).
 5. **ATS-structural** — single column, standard section headings, contact info
@@ -77,19 +77,21 @@ anything that reads as machine-generated (`CONSTRAINTS.md` §8).
 
 ## Verifier panel protocol
 
-- **≥3 independent verifiers** per candidate. Each scores **blind** — given the
-  resume (PDF text + `.tex`), the JD, the target family, and this rubric, but
-  **not** the other verifiers' scores or the change description. This prevents
-  anchoring and catches different failure modes.
-- **Independence spectrum (weakest → strongest):** (a) ≥3 fresh passes in one
-  context (simulated); (b) ≥3 independent subagents of your optimizer's model;
+- **At least 3 verifier judgments** per candidate. For decisions, each reviewer
+  scores the incumbent and candidate in one blind A/B prompt. It sees the PDF
+  text, JD, family, and fixed rubric, but not identities, other scores, the
+  hypothesis, or change description. A/B order alternates across reviewers.
+- **Decorrelation spectrum (weakest to strongest):** (a) at least 3 fresh passes
+  in one context (simulated); (b) at least 3 separate subagents of the
+  optimizer's model;
   (c) reviewers from **different model families** (e.g. Codex, Gemini) via
   `scripts/panel_review.py`. Same-model reviewers share training biases, so their
-  scores are *correlated*; a different family is a more statistically independent
-  estimator. Prefer (c) when available — see `docs/cross-agent-review.md`.
-- Each verifier returns: the gate result, a 0–100 score per dimension with a
-  one-line justification, the composite, and any fabrication/keyword/format
-  flags.
+  scores are *correlated*; a different family is a less-correlated estimator,
+  not a guarantee of independence. Prefer (c) when available; see
+  `docs/cross-agent-review.md`.
+- Each verifier returns every 0–100 dimension with a non-empty justification,
+  plus fabrication, keyword, and format flags. Missing, malformed, or
+  out-of-range responses are discarded. The script computes composites.
 - **Aggregate** by taking the **median** per dimension (robust to one outlier),
   then compute the composite from the medians.
 - The blind scorers don't see `source_material/`, so they flag claims that look
@@ -103,13 +105,13 @@ anything that reads as machine-generated (`CONSTRAINTS.md` §8).
 
 Compare the candidate's aggregated composite to the current canonical resume's.
 
-- **KEEP** if: gate passes **and** composite improves by **≥ +1.0** **and** no
-  single dimension regresses by more than **5 points** (unless offset by a
-  clearly larger, deliberate gain elsewhere — note it in the log).
+- **KEEP** if: gate passes, the panel is valid, the composite improves by the
+  applicable margin, and no single dimension regresses by more than 5 points.
 - Otherwise **REVERT**.
 
-The `+1.0` margin absorbs scoring noise so the loop doesn't churn on ties. A tie
-or sub-margin gain is a REVERT — keep the simpler existing version.
+The margin is `+1.0` only for a cross-family panel with at least two reviewer
+families different from the optimizer. Correlated or simulated panels use
+`+2.0`. A tie or sub-margin gain is a REVERT.
 
 See `OPTIMIZATION_LOOP.md` for how this plugs into the round loop and
 `optimization_log.md` for how to record the scores.

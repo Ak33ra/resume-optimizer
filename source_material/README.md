@@ -53,3 +53,6 @@ templates above are the recommended structure, not a straitjacket.
 - **Capture raw numbers.** If a metric exists anywhere, write it down — the agent
   won't make one up, and quantified bullets are what land interviews.
 - **Stay honest.** Everything here must be defensible in an interview.
+- **Keep evidence locatable.** Stable role/project headings and exact factual
+  excerpts make provenance manifests auditable. Update the source file first
+  when the user confirms an answer to an open gap.

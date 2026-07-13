@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "claims": {
+    "example-role": {
+      "sources": [
+        {
+          "file": "source_material/EXPERIENCE.md",
+          "section": "Example Company / Software Engineer",
+          "evidence": "Exact excerpt from the source file supporting this resume claim."
+        }
+      ]
+    }
+  }
+}

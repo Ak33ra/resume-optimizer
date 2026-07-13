@@ -1,139 +1,132 @@
 # TOOLS
 
-Commands the agent uses to build and verify resumes. Everything here works with
-just `pdflatex`; the extras (poppler, pypdf) make the ATS checks better and are
-worth installing once.
+`scripts/round.py` is the normal entry point for an optimization round. The
+lower-level tools remain available for baseline creation and diagnosis.
 
-Two helper scripts wrap the common cases (`scripts/`), but the raw commands are
-documented too so nothing is a black box.
-
-## Compile
+## Round orchestrator
 
 ```bash
-# Compile one resume. Use the .candidate.tex while iterating a round.
-pdflatex -interaction=nonstopmode -halt-on-error -output-directory=resumes \
-  resumes/<slug>_resume.candidate.tex
-# Run twice only if you add \ref/\cite cross-references (this template needs one pass).
+# Create durable per-target state after compiling, gating, truth-checking,
+# provenance-checking, publishing, and single-resume panel scoring the baseline.
+python3 scripts/round.py init <slug> --family <family> \
+  --panel resumes/<slug>_baseline.panel.json --truth-check passed
+
+# Create candidate source + candidate provenance from the canonical pair.
+python3 scripts/round.py start <slug> --hypothesis "one focused change"
+
+# Compile, enforce page/ATS rules, validate provenance, and record candidate hash.
+python3 scripts/round.py gate <slug> --truth-check passed
+
+# Verify paired-panel hashes, recompute policy, promote or revert, clean up, log.
+python3 scripts/round.py finish <slug> --panel resumes/<slug>_r<N>.panel.json \
+  --change "one-line description" [--gap "question"]
+
+python3 scripts/round.py status <slug>
+python3 scripts/round.py stop <slug> --reason "stopping criterion"
+python3 scripts/round.py resolve-gap <slug> <gap-id> \
+  --resolution "user-confirmed answer" --source source_material/<file>.md
 ```
 
-Or: `scripts/compile.sh resumes/<slug>_resume.candidate.tex` — compiles and
-prints exit status + page count in one step (exit 0 iff 1 page). For the
-RS/academic-CV exception, pass a max page count: `scripts/compile.sh <tex> 2`
-(`CONSTRAINTS.md` §2).
+The state file is `resumes/<slug>.state.json`. It records canonical hashes and
+scores, status, round history, panel metadata, benchmark paths, and structured
+open gaps. Writes are atomic. An `initializing` or `finalizing` state means an
+operation was interrupted and must be inspected before continuing.
 
-Build artifacts (`.aux`, `.log`, `.out`) land next to the source and are
-gitignored.
-
-## Gate check 1 — exactly one page
-
-`pdflatex`'s log line-wraps, so strip newlines before matching. This needs **no
-extra tools**:
+## Compile and page gate
 
 ```bash
-python3 - <<'PY'
-import re
-log = open('resumes/<slug>_resume.candidate.log','rb').read().decode('latin-1')
-m = re.search(r'Output written on .*?\((\d+) page', log.replace('\n',''))
-print('PAGES:', m.group(1) if m else 'UNKNOWN')
-PY
+scripts/compile.sh resumes/<slug>_resume.candidate.tex
+scripts/compile.sh resumes/<slug>_resume.candidate.tex 2  # approved research CV only
 ```
 
-Better, if installed: `pdfinfo resumes/<slug>_resume.candidate.pdf | grep Pages`
-(from `poppler-utils`), or via `pypdf`: `len(PdfReader(pdf).pages)`.
+Exit 0 means LaTeX compiled and the PDF has 1 through the allowed maximum pages.
+Build artifacts land next to the source and are gitignored.
 
-**PASS iff pages == 1.**
+## ATS gate
 
-## Gate check 2 — text is machine-selectable & clean
-
-The `\pdfgentounicode=1` line in the template makes text extractable. Verify the
-rendered PDF actually extracts cleanly. `scripts/ats_check.py` does this for you;
-to check by hand, `pypdf` works out of the box and also flags corruption:
+Always pass both rendered PDF and source so the checker can distinguish PDF-text
+rules from source-structure rules:
 
 ```bash
-python3 - <<'PY'
-from pypdf import PdfReader
-txt = "\n".join((p.extract_text() or "") for p in PdfReader('resumes/<slug>_resume.candidate.pdf').pages)
-print('chars:', len(txt))
-print('replacement-char present:', '�' in txt)   # must be False
-print(txt[:600])
-PY
+python3 scripts/ats_check.py resumes/<slug>_resume.candidate.pdf \
+  --tex resumes/<slug>_resume.candidate.tex \
+  --keywords resumes/<slug>.kw.txt
 ```
 
-If you have `poppler-utils`: `pdftotext -layout resumes/<slug>_resume.candidate.pdf - | head -50`.
+Hard checks cover extractable text, encoding, contact placement, standard
+headings, date ranges, `\pdfgentounicode=1`, single-column source constructs,
+empty headers/footers, and absence of images. Keyword coverage and presence of
+at least one valid date range are advisory. `--json` produces machine-readable
+gate output.
 
-**PASS iff** extracted text is non-trivial (>~200 chars for one page), contains
-no `�` (U+FFFD), and shows no broken ligatures (e.g., "office"→"oce"). If it
-fails, the ATS trick is broken — check `\input{glyphtounicode}` and
-`\pdfgentounicode=1` are present.
-
-## Gate check 3 — ATS structure + keyword coverage
-
-`scripts/ats_check.py` bundles the structural checks (standard section headings,
-contact info in body, date formats, single-column reading order, no stuffing)
-and keyword coverage:
+## Provenance gate
 
 ```bash
-# Structural checks only:
-python3 scripts/ats_check.py resumes/<slug>_resume.candidate.pdf
-
-# With keyword coverage against a JD's key terms (one per line):
-python3 scripts/ats_check.py resumes/<slug>_resume.candidate.pdf --keywords resumes/<slug>.kw.txt
+python3 scripts/provenance_check.py resumes/<slug>_resume.candidate.tex \
+  --manifest resumes/<slug>_provenance.candidate.json [--json]
 ```
 
-The full list of testable ATS rules is in `CONSTRAINTS.md` §4. Coverage is
-**advisory** (not a gate); target ~60–80% of the JD's top ~12–20 keywords, in
-real bullet context (not stuffed).
+Every active heading/bullet macro requires a `% source: <claim-id>` marker. Each
+ID needs a manifest source inside `source_material/`, a section locator, and an
+evidence excerpt that appears in that file. This complements, but does not
+replace, source-aware semantic review.
 
-## Optional — .docx fallback for legacy ATS
-
-Modern ATS parse a clean text PDF fine, so PDF is the default deliverable. A few
-legacy systems (notably Oracle Taleo) parse `.docx` more reliably. If a target
-is known to use one, and `pandoc` is available, you can also produce a Word
-copy — but never at the cost of the one-page PDF being correct:
+## Verifier panel
 
 ```bash
-pandoc resumes/<slug>_resume.tex -o resumes/<slug>_resume.docx   # optional, if pandoc installed
+# Baseline
+python3 scripts/panel_review.py resumes/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family <model-family> --slug <slug> \
+  --output resumes/<slug>_baseline.panel.json
+
+# Paired round decision
+python3 scripts/panel_review.py resumes/<slug>_resume.candidate.pdf \
+  --baseline resumes/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family <model-family> --slug <slug> \
+  --output resumes/<slug>_r<N>.panel.json
 ```
 
-**Caveat:** pandoc won't cleanly round-trip this template's custom `\resume*`
-macros / `tabular*` rows and may emit Word tables — the exact thing some ATS
-mangle. Treat the output as **unverified**: re-run the parse check on it (or on a
-PDF export of it), or hand-build a single-column `.docx`. Never ship a docx you
-haven't parse-checked.
+See `docs/cross-agent-review.md` for strict response schemas, diversity rules,
+privacy implications, and fallback behavior.
 
-## Git — commit protocol (see CONSTRAINTS.md §7)
+## Independent benchmark
 
 ```bash
-# On a KEEP: canonical resume already updated locally (gitignored); commit the log.
+python3 benchmarks/benchmark.py outputs/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --slug <slug> --round <N>
+python3 benchmarks/report.py --slug <slug>
+```
+
+Benchmark results are advisory and local. Pass a result path to `round.py
+finish --benchmark` to record it in state and the log.
+
+## Git protocol
+
+The orchestrator updates `optimization_log.md` on every finish. Commit the log
+after a KEEP:
+
+```bash
 git add optimization_log.md
-git commit -m "optimize(<slug>): round N — composite A→B (KEEP)"
-
-# Never stage resumes/, outputs/, or source_material/ — they're gitignored; verify:
-git status --porcelain            # these dirs must not appear
+git commit -m "optimize(<slug>): round N - composite A->B (KEEP)"
 ```
 
-## Candidate ↔ canonical file workflow (the rollback mechanism)
+The hooks under `scripts/hooks/` scan staged content and every outgoing commit
+unless the exact destination remote is locally attested as private. See
+`PRIVACY.md`.
+
+## Optional DOCX fallback
+
+Modern ATS generally parse a clean text PDF. If a target requires DOCX, create
+and manually inspect a single-column version; `pandoc` does not reliably convert
+the template's custom macros and may introduce layout tables. Never ship an
+unverified conversion.
+
+## Environment
 
 ```bash
-# Start a round from the current best:
-cp resumes/<slug>_resume.tex resumes/<slug>_resume.candidate.tex   # or create the first draft
-
-# ... edit + compile + score the candidate ...
-
-# KEEP: promote candidate to canonical, recompile, publish the deliverable PDF:
-mv resumes/<slug>_resume.candidate.tex resumes/<slug>_resume.tex
-scripts/compile.sh resumes/<slug>_resume.tex
-mkdir -p outputs && cp resumes/<slug>_resume.pdf outputs/<slug>_resume.pdf   # ready-to-submit PDF
-rm -f resumes/<slug>_resume.candidate.*
-
-# REVERT: just discard the candidate (outputs/ keeps the last good PDF):
-rm -f resumes/<slug>_resume.candidate.*
-```
-
-## One-time environment setup (recommended)
-
-```bash
-apt-get install -y poppler-utils   # pdfinfo, pdftotext  (may need sudo)
-pip install pypdf                  # fallback PDF text extraction
-# LaTeX: pdflatex must be installed (TeX Live). Check: pdflatex --version
+# Required: pdflatex (TeX Live)
+apt-get install -y poppler-utils
+pip install pypdf
 ```

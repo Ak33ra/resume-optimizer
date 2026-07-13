@@ -39,9 +39,11 @@ git remote rename origin upstream                      # public skeleton = upstr
 git remote set-url --push upstream DISABLED            # guardrail: you literally cannot push to the public repo
 git remote add origin git@github.com:<you>/resume-optimizer-private.git
 
-# 3. Turn on tracked git hooks + allow PII on THIS private repo only
-git config core.hooksPath scripts/hooks               # enables the pre-push PII guard
-git config resumeopt.allowPII true                    # you've confirmed origin is private
+# 3. Turn on tracked hooks and attest ONE exact private destination.
+git config core.hooksPath scripts/hooks
+git config resumeopt.allowPII true
+git config resumeopt.privateRemote origin
+git config resumeopt.privatePushUrl "$(git remote get-url --push origin)"
 
 # 4. Version-control your real files: either uncomment the "PRIVATE FORK" block
 #    in .gitignore, or force-add deliberately:
@@ -62,19 +64,23 @@ git fetch upstream && git merge upstream/main
    stage them.
 2. **Disabled upstream push** — `set-url --push upstream DISABLED` makes pushing
    to the public repo fail outright.
-3. **Pre-push hook** — `scripts/hooks/pre-push` blocks any push that carries
-   files under `resumes/`/`source_material/` (other than READMEs/`*.example.md`)
-   or an email/phone in `optimization_log.md`, **unless** the repo is marked
-   `resumeopt.allowPII true`. Enable it with `git config core.hooksPath
-   scripts/hooks` (already in the setup above). The public skeleton leaves
-   `allowPII` unset, so it's protected too.
+3. **Pre-commit hook** — scans staged content before private data enters public
+   skeleton history.
+4. **Pre-push hook** — scans every version in every outgoing commit, so adding
+   PII and deleting it in a later commit is still caught. The exception applies
+   only when `allowPII`, `privateRemote`, and `privatePushUrl` all match the
+   destination being pushed.
+
+The configuration is a local attestation, not an API check of the hosting
+provider's visibility. Confirm that the destination is private before setting
+it. If its URL changes, update `privatePushUrl`; pushes fail closed otherwise.
 
 ## What about the optimization log?
 
 `optimization_log.md` is **committed** (it's the round history). Keep it to
 scores + change descriptions. Referencing your own resume specifics there is
 fine and useful in your private fork; avoid raw contact PII (name/email/phone) —
-and the pre-push hook blocks those from reaching any non-private remote anyway.
+and the hooks block those from entering or reaching an unattested remote.
 
 ## Contributing back to the public skeleton
 

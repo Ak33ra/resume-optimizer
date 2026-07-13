@@ -2,8 +2,8 @@
 
 An agentic resume optimization loop for coding agents. Point an agent at your
 master resume and a job description; it produces a one-page, ATS-safe,
-truthfully-tailored resume, scores it with an independent panel, and iterates —
-keeping only changes that score higher.
+truthfully tailored resume, scores incumbent/candidate pairs with a blind panel,
+and iterates while keeping only policy-clearing changes.
 
 Built for landing interviews at top CS roles — FAANG-tier internships and
 new-grad SWE, frontier research labs (Anthropic, OpenAI, DeepMind), and quant
@@ -16,8 +16,8 @@ source_material/  (your true experience)          job_descriptions/<slug>.md  (a
                          \                        /
                           v                      v
         ┌───────────────────────────────────────────────────┐
-        │  tailor  →  compile & gate  →  panel scores  →      │
-        │  KEEP if higher / REVERT if not  →  log the round   │  ← repeat until it stops improving
+        │  tailor -> gate + provenance -> paired panel ->      │
+        │  policy KEEP/REVERT -> state + log                   │  <- repeat until plateau
         └───────────────────────────────────────────────────┘
                           |
                           v
@@ -65,7 +65,7 @@ Your resumes and source material stay **local** by default (gitignored). See
 | `job_descriptions/` | One file per role you're targeting — paste the full posting. | Yes (public postings). |
 | `resumes/` | *Generated for you* — the tailored LaTeX **source** `<slug>_resume.tex` (+ transient build files). | Local by default; private fork only (PII). |
 | `outputs/` | *Generated for you* — the ready-to-submit **PDF** `<slug>_resume.pdf` (published on baseline + every KEEP). | Local by default; private fork only (PII). |
-| `optimization_log.md` | *Written by the agent* — score + change-note history of each round (no contact PII). | Yes. |
+| `optimization_log.md` | Score, panel, gate, benchmark, change, gap, and decision summary for each round (no contact PII). | Yes. |
 
 ## Usage
 
@@ -93,7 +93,7 @@ up. Each finished resume lands in `outputs/<slug>_resume.pdf`, ready to submit.
 | `TOOLS.md` | Exact build & verification commands. |
 | `PRIVACY.md` | Public-skeleton / private-fork model + PII guardrails. |
 | `resume_template.tex` | The single-column, ATS-safe LaTeX template (Jake's Resume). |
-| `scripts/` | `compile.sh` (compile + page count), `ats_check.py` (parse-safety + keyword coverage), `panel_review.py` (cross-agent independent review), `hooks/pre-push` (PII guard). |
+| `scripts/` | `round.py` (state machine), compile/ATS/provenance gates, strict paired panel, benchmarks, and git privacy hooks. |
 | `benchmarks/` | Independent third-party scoring to verify efficacy (parse-safety, keyword coverage, semantic match). |
 | `optimization_log.md` | Committed score history of every round. |
 | `source_material/`, `job_descriptions/`, `resumes/`, `outputs/` | Your inputs (`source_material/`, `job_descriptions/`) and generated outputs (`resumes/` sources, `outputs/` final PDFs). |
@@ -107,17 +107,18 @@ and Jobscan. The proof is the before→after delta across rounds, not any single
 number. See [`benchmarks/README.md`](benchmarks/README.md).
 
 **Multiple coding agents?** If you have others on your CLI (Codex, Gemini, …),
-`scripts/panel_review.py` runs them as *independent* reviewers of a resume — a
-different model family gives statistically decorrelated scores that de-bias the
-keep/revert decision, which a second copy of your own model can't. See
+`scripts/panel_review.py` runs paired blind reviews and records model-family
+diversity. Different families reduce shared bias; correlated panels use a wider
+decision margin rather than claiming false independence. See
 [`docs/cross-agent-review.md`](docs/cross-agent-review.md).
 
 ## Principles
 
-- **Truthful, always.** The agent rewords, reorders, and emphasizes what's real;
-  it never fabricates. Every line must survive a live interview.
-- **Independently verified.** The agent that writes isn't the sole judge —
-  a panel of independent verifiers scores each round.
+- **Truthful and traceable.** The agent rewords, reorders, and emphasizes what's
+  real; claim IDs map back to source evidence and every line must survive a live
+  interview.
+- **Blindly cross-checked.** The agent that writes is not the sole judge; a
+  recorded, diversity-aware panel scores each incumbent/candidate pair.
 - **Private by default.** Resume content and PII stay on your machine. Share the
   skeleton publicly; keep your history in a private fork, with gitignore + a
   pre-push hook guarding against accidental leaks. See [`PRIVACY.md`](PRIVACY.md).

@@ -1,95 +1,73 @@
-# Cross-agent review — independent verifiers from other CLI agents
+# Cross-agent review
 
-The optimization loop scores each round with a **panel of independent
-verifiers** (`CRITERIA.md`). The catch: if those verifiers are all the same
-model as your optimizer, their scores are **correlated** — they share training
-data and blind spots, so three of them mostly agree with each other (and with
-the optimizer) for the same reasons. That inflates confidence without adding
-much real information.
+`scripts/panel_review.py` obtains blind judgments from installed Codex, Gemini,
+and Claude CLIs. Model-family diversity reduces shared evaluator bias, but it
+does not make scores objective or statistically independent in a strict sense.
+The script therefore records exactly which CLI families completed and widens
+the KEEP margin when diversity is weak.
 
-A reviewer from a **different model family** (e.g. you optimize with Claude Code
-and review with OpenAI Codex and/or Gemini CLI) is a more statistically
-**independent** estimator. It disagrees for *different* reasons, so it catches
-things a same-model panel misses and de-biases the KEEP/REVERT decision. This is
-the strongest tier of the independence spectrum in `CRITERIA.md`:
+## Paired decision scoring
 
-```
-weak  (a) ≥3 fresh passes in one context (simulated)
-      (b) ≥3 independent subagents of your optimizer's model
-strong(c) reviewers from DIFFERENT model families (Codex, Gemini, …)  ← this doc
-```
-
-## What the toolkit ships
-
-`scripts/panel_review.py` runs whichever external agents you have installed as
-blind reviewers and aggregates their scores.
+Score the incumbent and candidate in the same reviewer call:
 
 ```bash
-python3 scripts/panel_review.py outputs/<slug>_resume.pdf \
-    --jd job_descriptions/<slug>.md --family <family> [--reviewers codex,gemini] [--slug <slug>]
+python3 scripts/panel_review.py resumes/<slug>_resume.candidate.pdf \
+  --baseline resumes/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family <openai|google|anthropic|other> --slug <slug> \
+  --reviewers codex,gemini,claude \
+  --output resumes/<slug>_r<N>.panel.json
 ```
 
-- It **inlines** the rubric + resume text + JD into the prompt, so each reviewer
-  needs **no file or tool access** — it only reads what you hand it.
-- Each reviewer returns a strict JSON object of per-dimension 0-100 scores +
-  fabrication flags; the script computes the family-weighted composite (same
-  weights as `CRITERIA.md`) and reports the **median** across reviewers.
-- Missing agents and unparseable output are skipped with a note; a reviewer runs
-  **read-only**.
+Reviewers see neutral Resume A/Resume B labels; the script alternates which
+artifact is A. They do not see the edit hypothesis, change description, other
+scores, source material, or provenance manifest. Each must return all six
+0-100 dimensions, a reason for each score, and explicit fabrication, keyword,
+and formatting flag arrays. Partial, malformed, or out-of-range responses are
+rejected rather than filled with defaults.
 
-Check what's wired up without spending anything:
+Reviewers run concurrently. Prompts are sent over stdin where supported and the
+CLIs run without workspace write access. The result includes input hashes,
+reviewer families, failures, median dimensions, composites, flags, and a policy
+recommendation.
+
+## Decision strength
+
+- At least three completed reviewers are required by default.
+- `decorrelated: true` requires at least two completed reviewer families that
+  differ from `--optimizer-family`; the margin is `+1.0`.
+- A valid but correlated/simulated panel uses `+2.0` to absorb more evaluator
+  noise.
+- A dimension drop greater than five points always reverts.
+- Any reviewer flag must be investigated before `round.py finish` accepts it.
+
+`--min-reviewers 2` is an explicit weaker fallback, not the normal protocol.
+The orchestrator independently recomputes the decision and verifies both input
+hashes before promoting anything.
+
+## Availability and testing
 
 ```bash
-python3 scripts/panel_review.py outputs/<slug>_resume.pdf --jd job_descriptions/<slug>.md \
-    --family big_tech --dry-run        # shows which agents are installed + the prompt
-python3 scripts/panel_review.py ... --reviewers mock   # fake reviewer, exercises the pipeline
+python3 scripts/panel_review.py resumes/<slug>_resume.pdf \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family <model-family> --dry-run
+
+python3 scripts/panel_review.py resumes/<slug>_resume.tex \
+  --jd job_descriptions/<slug>.md --family <family> \
+  --optimizer-family other --reviewers mock --min-reviewers 1 --json
 ```
 
-## Exact commands per agent (confirm against your version)
+The mock exercises plumbing only; it is never valid evidence of resume quality.
+CLI flags evolve, so check each installed tool's help if a reviewer fails to
+launch.
 
-The script invokes each agent in its documented headless mode. Flags evolve —
-run `<tool> --help` and edit the `REVIEWERS` table at the top of
-`scripts/panel_review.py` if yours differ.
+## Limits
 
-| Agent | Headless invocation | Notes |
-|-------|---------------------|-------|
-| **Codex CLI** | `codex exec --sandbox read-only "<prompt>"` | `exec` = non-interactive; **read-only is the default**; final answer → stdout. |
-| **Gemini CLI** | `gemini -p "<prompt>"` | `-p`/`--prompt` = headless single turn → stdout. |
-| **Claude Code** | `claude -p "<prompt>" --output-format text` | print mode → stdout. Useful when your optimizer is *not* Claude. |
-
-You authenticate each CLI with its own account; the toolkit just shells out.
-
-## Using it in the loop
-
-Treat cross-agent scores as an **additional, decorrelated** input to the
-KEEP/REVERT decision (`OPTIMIZATION_LOOP.md` §4d), not a replacement for your
-own panel:
-
-- **Agreement gate (recommended):** KEEP only if *both* your own panel and the
-  cross-agent panel clear the `+1.0` margin. Disagreement → don't keep; look at
-  why.
-- **Or pool them:** take the median composite across all reviewers (yours +
-  cross-agent) and apply the normal rule.
-- Note which reviewers ran in the log's change line, e.g.
-  `panel: claude x3 + codex + gemini`.
-
-If the cross-agent panel strongly disagrees with your own, that's the signal you
-wanted — investigate before trusting either.
-
-## Caveats
-
-- **Privacy tradeoff.** This sends your resume text + the JD to whichever agents
-  you invoke — i.e. to those providers, under your accounts. It's opt-in and
-  breaks the otherwise local-only default. Only run reviewers you're comfortable
-  sharing that content with. (Nothing is committed; this is a runtime call.)
-- **Non-determinism.** LLM reviewers are noisy and non-deterministic; the same
-  input can score differently across runs. That's exactly why the `+1.0` margin
-  and median aggregation exist — don't over-fit to a single reviewer's number.
-- **Cost/latency.** Each reviewer is a full agent run on your account; a panel
-  of three is three runs per round. Use it on near-final candidates, not every
-  micro-edit.
-- **Truthfulness still rules.** A cross-agent reviewer can't see your
-  `source_material/`, so its fabrication flags are *suspicions*; the
-  authoritative no-fabrication check remains the source-aware gate verifier
-  (`OPTIMIZATION_LOOP.md` §4c). Never let any reviewer's score pressure you into
-  a claim you can't defend (`CONSTRAINTS.md` §1).
+- This sends resume and JD text to the selected providers under the user's
+  accounts. It is opt-in and no longer local-only.
+- LLM scores remain noisy and correlated through shared data and conventions.
+Use deltas and rationales, not false precision.
+- Source-blind fabrication flags are suspicions. The source-aware truth gate and
+  provenance manifest remain authoritative.
+- PDF input is preferred because formatting cannot be judged reliably from raw
+  LaTeX source.
