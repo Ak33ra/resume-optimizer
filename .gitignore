@@ -15,9 +15,14 @@ source_material/*
 !source_material/README.md
 !source_material/*.example.md
 
+job_targets.csv
+job_descriptions/*
+!job_descriptions/README.md
+!job_descriptions/*.example.md
+
 # ----------------------------------------------------------------------------
 #  PRIVATE FORK ONLY  —  keeping a personal, version-controlled history of your
-#  real resumes and source material.
+#  real resumes, source material, and selected job targets.
 #  Do this ONLY inside your OWN PRIVATE repo (its `origin` is a private remote —
 #  see PRIVACY.md). NEVER in a clone of the public skeleton.
 #  To turn it on, uncomment the two lines below (later rules override earlier
@@ -30,6 +35,8 @@ source_material/*
 # !resumes/*
 # !outputs/*
 # !source_material/*
+# !job_targets.csv
+# !job_descriptions/*
 
 # ============================================================================
 #  Benchmarks — keep personal data & run outputs local

@@ -31,6 +31,10 @@ CLIs run without workspace write access. The result includes input hashes,
 reviewer families, failures, median dimensions, composites, flags, and a policy
 recommendation.
 
+The JD and resumes are explicitly marked as untrusted data in every prompt.
+Panel JSON records the exact JD hash; `round.py` rejects baseline or paired
+scores created from a different frozen snapshot.
+
 ## Decision strength
 
 - At least three completed reviewers are required by default.
@@ -43,7 +47,7 @@ recommendation.
 
 `--min-reviewers 2` is an explicit weaker fallback, not the normal protocol.
 The orchestrator independently recomputes the decision and verifies both input
-hashes before promoting anything.
+resume and JD hashes before promoting anything.
 
 ## Availability and testing
 

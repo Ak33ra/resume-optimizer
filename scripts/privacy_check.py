@@ -15,6 +15,8 @@ PROTECTED_PREFIXES = (
     "resumes/",
     "outputs/",
     "source_material/",
+    "job_targets.csv",
+    "job_descriptions/",
     "benchmarks/ground_truth/",
     "benchmarks/results/",
     "benchmarks/external/",
@@ -105,7 +107,7 @@ def scan_revision(revision: str, paths: list[str]) -> list[str]:
     problems = []
     for path in paths:
         if protected_path(path):
-            problems.append(f"protected personal-data path: {path} ({revision[:12]})")
+            problems.append(f"protected private-data path: {path} ({revision[:12]})")
         if safe_template(path) or PurePosixPath(path).suffix.lower() in BINARY_SUFFIXES:
             continue
         try:
@@ -130,7 +132,7 @@ def scan_staged() -> list[str]:
     problems = []
     for path in paths:
         if protected_path(path):
-            problems.append(f"protected personal-data path: {path} (staged)")
+            problems.append(f"protected private-data path: {path} (staged)")
         if safe_template(path) or PurePosixPath(path).suffix.lower() in BINARY_SUFFIXES:
             continue
         try:

@@ -1,14 +1,14 @@
 # PRIVACY & REPO MODEL
 
 This project is designed to be **shared publicly as a skeleton** while your
-**resumes and personal data stay private** — with several guardrails so PII is
-never pushed by accident.
+**resumes, selected roles, and personal data stay private** — with several
+guardrails so private material is never pushed by accident.
 
 ## The two-repo model
 
-| | **Public skeleton** (this repo) | **Your private fork** |
+| | **Public skeleton** (this repo) | **Your private mirror** |
 |---|---|---|
-| Contains | Toolkit only: instructions, template, scripts, `*.example.md` | Toolkit **+** your real `source_material/`, `resumes/`, and round history |
+| Contains | Toolkit only: instructions, template, scripts, `*.example.md` | Toolkit **+** real source material, target URLs/JDs, resumes, and round history |
 | Remote | Public (e.g. `github.com/you/resume-optimizer`) | **Private** repo you own |
 | PII | Never | Yes — but only ever pushed to the private remote |
 | Purpose | Fork/share/star; receive improvements | Your day-to-day resume work, with full version history |
@@ -19,12 +19,12 @@ public skeleton whenever you want.
 
 ## Why not just gitignore everything?
 
-`resumes/` and `source_material/` **are** gitignored by default — that's the
-first guardrail (a stray `git add .` can't stage them). But gitignore alone
-means you get *no* history of your own work. The private-fork model gives you
-that history safely.
+`resumes/`, `source_material/`, `job_targets.csv`, and real
+`job_descriptions/` **are** gitignored by default — that's the first guardrail
+(a stray `git add .` can't stage them). But gitignore alone means you get no
+history of your own work. The private-mirror model gives you that history safely.
 
-## One-time setup for your private fork
+## One-time setup for your private mirror
 
 GitHub can't make a fork of a public repo private, so create a private **mirror**
 and keep the public repo as an upstream for updates:
@@ -47,7 +47,7 @@ git config resumeopt.privatePushUrl "$(git remote get-url --push origin)"
 
 # 4. Version-control your real files: either uncomment the "PRIVATE FORK" block
 #    in .gitignore, or force-add deliberately:
-git add -f source_material resumes optimization_log.md
+git add -f source_material job_targets.csv job_descriptions resumes outputs optimization_log.md
 git commit -m "chore: seed private material"
 git push -u origin main                               # goes to your PRIVATE repo
 ```
@@ -60,8 +60,8 @@ git fetch upstream && git merge upstream/main
 
 ## Guardrails (defense in depth)
 
-1. **Gitignore** — PII paths are ignored by default; accidental `git add .` won't
-   stage them.
+1. **Gitignore** — PII and selected-target paths are ignored by default;
+   accidental `git add .` won't stage them.
 2. **Disabled upstream push** — `set-url --push upstream DISABLED` makes pushing
    to the public repo fail outright.
 3. **Pre-commit hook** — scans staged content before private data enters public
@@ -79,11 +79,12 @@ it. If its URL changes, update `privatePushUrl`; pushes fail closed otherwise.
 
 `optimization_log.md` is **committed** (it's the round history). Keep it to
 scores + change descriptions. Referencing your own resume specifics there is
-fine and useful in your private fork; avoid raw contact PII (name/email/phone) —
+fine and useful in your private mirror; avoid raw contact PII (name/email/phone) —
 and the hooks block those from entering or reaching an unattested remote.
 
 ## Contributing back to the public skeleton
 
 Only push **toolkit** changes (instructions, template, scripts) upstream, from a
-clean clone of the public repo — never from your private fork, and never
-including anything under `resumes/` or `source_material/`.
+clean clone of the public repo — never from your private mirror, and never
+including anything under `resumes/`, `source_material/`, real
+`job_descriptions/`, or `job_targets.csv`.

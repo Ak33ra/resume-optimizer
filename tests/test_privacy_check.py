@@ -12,8 +12,11 @@ class PrivacyCheckTests(unittest.TestCase):
     def test_protected_paths_allow_only_templates(self):
         self.assertTrue(protected_path("resumes/acme_resume.tex"))
         self.assertTrue(protected_path("outputs/acme_resume.pdf"))
+        self.assertTrue(protected_path("job_targets.csv"))
+        self.assertTrue(protected_path("job_descriptions/acme_backend.md"))
         self.assertFalse(protected_path("resumes/README.md"))
         self.assertFalse(protected_path("source_material/EXPERIENCE.example.md"))
+        self.assertFalse(protected_path("job_descriptions/JOB_DESCRIPTION.example.md"))
 
     def test_pii_detection_ignores_documented_placeholders(self):
         self.assertEqual(pii_kinds(b"you@example.com 123-456-7890"), set())

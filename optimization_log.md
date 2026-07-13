@@ -11,7 +11,7 @@ Rules:
   reviewers, decision threshold, benchmark path/result, hypothesis, change, and
   gap IDs/questions.
 - Never include raw contact PII. Resume-specific change descriptions are fine in
-  a private fork.
+  a private mirror.
 - Commit this file after each KEEP. REVERT entries may remain uncommitted until
   the next KEEP or an explicit history checkpoint.
 

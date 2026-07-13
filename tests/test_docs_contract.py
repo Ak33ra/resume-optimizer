@@ -31,6 +31,17 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertIn("resumeopt.privateRemote", privacy)
         self.assertIn("resumeopt.privatePushUrl", privacy)
 
+    def test_job_intake_precedes_optimization_and_freezes_target(self):
+        loop = self.read("OPTIMIZATION_LOOP.md")
+        self.assertIn("scripts/jobs.py prepare <slug>", loop)
+        self.assertLess(loop.index("scripts/jobs.py prepare <slug>"), loop.index("## 2. Parse the target"))
+        self.assertIn("JD hash", loop)
+
+    def test_selected_targets_are_documented_as_private(self):
+        privacy = self.read("PRIVACY.md")
+        self.assertIn("job_targets.csv", privacy)
+        self.assertIn("job_descriptions/", privacy)
+
 
 if __name__ == "__main__":
     unittest.main()

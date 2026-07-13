@@ -12,7 +12,7 @@ firms (SWE, research, trading) — but it works for any role.
 ## How it works
 
 ```
-source_material/  (your true experience)          job_descriptions/<slug>.md  (a target)
+source_material/  (your true experience)    job_targets.csv -> validated JD snapshot
                          \                        /
                           v                      v
         ┌───────────────────────────────────────────────────┐
@@ -33,8 +33,8 @@ page, formats it to survive ATS parsing, and records every round.
 1. **Install the toolchain.** `pdflatex` (TeX Live) is required. Recommended
    extras for the ATS checks: `apt-get install -y poppler-utils` and
    `pip install pypdf`.
-2. **(Recommended) make a private fork** (a private *mirror* — GitHub can't
-   privatize a fork of a public repo) so your resume history stays private. See
+2. **(Recommended) make a private mirror** (GitHub can't privatize a fork of a
+   public repo) so your resume history stays private. See
    [`PRIVACY.md`](PRIVACY.md) — a few git commands, with guardrails that stop PII
    from ever reaching a public remote.
 3. **Add your material.** In `source_material/`, copy each `*.example.md`
@@ -50,21 +50,24 @@ page, formats it to survive ATS parsing, and records every round.
    Claude, Gemini, …) already knows about you — see
    [`docs/importing-from-ai-memory.md`](docs/importing-from-ai-memory.md) — then
    verify and correct it.
-4. **Add targets.** Save each job posting as `job_descriptions/<slug>.md` (full
-   text, especially the qualifications). See
+4. **Add targets.** Copy `job_targets.example.csv` to `job_targets.csv`, replace
+   its example row with user-selected posting URLs, and ask the agent to prepare
+   those targets. It fetches each posting into a validated, frozen
+   `job_descriptions/<slug>.md` snapshot. Manual JDs remain supported. See
    [`job_descriptions/README.md`](job_descriptions/README.md).
 
-Your resumes and source material stay **local** by default (gitignored). See
+Your resumes, source material, selected URLs, and JDs stay **local** by default. See
 **Privacy** below.
 
 ## What goes where
 
 | Folder | You put in | Committed? |
 |--------|-----------|-----------|
-| `source_material/` | Everything true about you — your master resume and per-section facts (copy the `*.example.md` templates). The agent's only source of truth. | Local by default; private fork only (PII). |
-| `job_descriptions/` | One file per role you're targeting — paste the full posting. | Yes (public postings). |
-| `resumes/` | *Generated for you* — the tailored LaTeX **source** `<slug>_resume.tex` (+ transient build files). | Local by default; private fork only (PII). |
-| `outputs/` | *Generated for you* — the ready-to-submit **PDF** `<slug>_resume.pdf` (published on baseline + every KEEP). | Local by default; private fork only (PII). |
+| `source_material/` | Everything true about you — your master resume and per-section facts (copy the `*.example.md` templates). The agent's only source of truth. | Local by default; private mirror only (PII). |
+| `job_targets.csv` | Optional private intake queue: selected URL, slug, family, priority, and notes. | Local by default; private mirror only. |
+| `job_descriptions/` | Validated, frozen Markdown snapshots generated from selected URLs or populated manually. | Local by default; private mirror only. |
+| `resumes/` | *Generated for you* — the tailored LaTeX **source** `<slug>_resume.tex` (+ transient build files). | Local by default; private mirror only (PII). |
+| `outputs/` | *Generated for you* — the ready-to-submit **PDF** `<slug>_resume.pdf` (published on baseline + every KEEP). | Local by default; private mirror only (PII). |
 | `optimization_log.md` | Score, panel, gate, benchmark, change, gap, and decision summary for each round (no contact PII). | Yes. |
 
 ## Usage
@@ -72,11 +75,14 @@ Your resumes and source material stay **local** by default (gitignored). See
 Start your coding agent in this repo and tell it, in plain language, which jobs
 to optimize for — for example:
 
-> "Read AGENT.md and optimize my resume for the Anthropic and Jane Street
-> postings in job_descriptions/."
+> "Read AGENT.md and optimize my resume for the enabled targets in
+> job_targets.csv."
 
-The agent reads `AGENT.md`, then follows `OPTIMIZATION_LOOP.md`. If you don't
-name targets, it will ask which company/role to focus on. When it needs a metric
+The agent reads `AGENT.md`, prepares missing JDs from the CSV, then follows
+`OPTIMIZATION_LOOP.md`. Existing valid JDs can be used without a CSV. If a fetch
+fails or produces incomplete text, the pipeline stops and creates a blocked
+manual-fill document rather than optimizing against partial content. If you
+don't name targets, the agent asks which company/role to focus on. When it needs a metric
 or a skill it can't find in your material, it will ask rather than make something
 up. Each finished resume lands in `outputs/<slug>_resume.pdf`, ready to submit.
 
@@ -93,10 +99,10 @@ up. Each finished resume lands in `outputs/<slug>_resume.pdf`, ready to submit.
 | `TOOLS.md` | Exact build & verification commands. |
 | `PRIVACY.md` | Public-skeleton / private-fork model + PII guardrails. |
 | `resume_template.tex` | The single-column, ATS-safe LaTeX template (Jake's Resume). |
-| `scripts/` | `round.py` (state machine), compile/ATS/provenance gates, strict paired panel, benchmarks, and git privacy hooks. |
+| `scripts/` | Job intake, `round.py` state machine, compile/ATS/provenance gates, strict paired panel, benchmarks, and git privacy hooks. |
 | `benchmarks/` | Independent third-party scoring to verify efficacy (parse-safety, keyword coverage, semantic match). |
 | `optimization_log.md` | Committed score history of every round. |
-| `source_material/`, `job_descriptions/`, `resumes/`, `outputs/` | Your inputs (`source_material/`, `job_descriptions/`) and generated outputs (`resumes/` sources, `outputs/` final PDFs). |
+| `job_targets.csv`, `source_material/`, `job_descriptions/`, `resumes/`, `outputs/` | Private inputs, frozen targets, generated sources, and final PDFs. |
 
 ## Verifying it works
 
@@ -119,6 +125,7 @@ decision margin rather than claiming false independence. See
   interview.
 - **Blindly cross-checked.** The agent that writes is not the sole judge; a
   recorded, diversity-aware panel scores each incumbent/candidate pair.
-- **Private by default.** Resume content and PII stay on your machine. Share the
-  skeleton publicly; keep your history in a private fork, with gitignore + a
-  pre-push hook guarding against accidental leaks. See [`PRIVACY.md`](PRIVACY.md).
+- **Private by default.** Resume content, selected roles, and PII stay on your
+  machine. Share the skeleton publicly; keep personal history in a private
+  mirror, with gitignore + a pre-push hook guarding against accidental leaks.
+  See [`PRIVACY.md`](PRIVACY.md).

@@ -71,7 +71,7 @@ renormalize so the six weights still sum to 100.
 
 For firms known to hand-read and reject AI-written materials (e.g., Jane
 Street), the panel should also weight authenticity/human-readability and flag
-anything that reads as machine-generated (`CONSTRAINTS.md` §8).
+anything that reads as machine-generated (`CONSTRAINTS.md` §9).
 
 ---
 
@@ -92,11 +92,13 @@ anything that reads as machine-generated (`CONSTRAINTS.md` §8).
 - Each verifier returns every 0–100 dimension with a non-empty justification,
   plus fabrication, keyword, and format flags. Missing, malformed, or
   out-of-range responses are discarded. The script computes composites.
+- Every panel artifact records the exact JD hash. Baseline initialization and
+  round finalization reject scores produced from any other snapshot.
 - **Aggregate** by taking the **median** per dimension (robust to one outlier),
   then compute the composite from the medians.
 - The blind scorers don't see `source_material/`, so they flag claims that look
   **implausible or unverifiable**. The authoritative no-fabrication check is the
-  separate gate verifier in `OPTIMIZATION_LOOP.md` §4c, which *does* get
+  separate gate verifier in `OPTIMIZATION_LOOP.md` §5b, which *does* get
   `source_material/`. **Any fabrication/implausibility flag** forces a gate
   review before the score counts — resolve it (cut the claim or confirm with the
   user) first.
