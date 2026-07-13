@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Catch accidental PII staging before it enters public-skeleton history.
+set -u
+
+root="$(git rev-parse --show-toplevel)" || exit 1
+allow_pii="$(git config --bool resumeopt.allowPII 2>/dev/null || true)"
+private_remote="$(git config --get resumeopt.privateRemote 2>/dev/null || true)"
+private_url="$(git config --get resumeopt.privatePushUrl 2>/dev/null || true)"
+actual_url="$(git remote get-url --push "$private_remote" 2>/dev/null || true)"
+
+if [ "$allow_pii" = "true" ] \
+  && [ -n "$private_remote" ] \
+  && [ -n "$private_url" ] \
+  && [ "$actual_url" = "$private_url" ]; then
+  exit 0
+fi
+
+python3 "$root/scripts/privacy_check.py" --staged
+status=$?
+if [ $status -ne 0 ]; then
+  printf '\npre-commit blocked: possible private data is staged. See PRIVACY.md.\n' >&2
+fi
+exit $status
