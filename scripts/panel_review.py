@@ -60,11 +60,15 @@ REVIEWERS = {
             "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "-",
         ],
     ),
-    "gemini": ReviewerSpec("google", lambda: ["gemini", "-p"]),
+    # Gemini requires a value for -p; an empty value forces headless mode and
+    # causes the real prompt from stdin to be appended.
+    "gemini": ReviewerSpec(
+        "google", lambda: ["gemini", "-p", "", "--approval-mode", "plan"]
+    ),
     "claude": ReviewerSpec(
         "anthropic",
         lambda: [
-            "claude", "-p", "--bare", "--safe-mode", "--no-session-persistence",
+            "claude", "-p", "--safe-mode", "--no-session-persistence",
             "--permission-mode", "dontAsk", "--output-format", "text",
         ],
     ),
@@ -130,6 +134,9 @@ def rubric(family: str) -> str:
     return f"""Use these dimensions and family-adjusted weights: {weights}.
 Calibration bands: 90-100 exceptional for this exact role; 75-89 strong with
 minor gaps; 60-74 adequate with clear gaps; 40-59 weak; below 40 failing.
+Anchor 60 at generic or incomplete evidence, 75 at solid evidence for most core
+requirements, and 90 only at specific, quantified, role-matched evidence with
+no material weakness. Do not award precision unsupported by the resume.
 
 - relevance: maps to this JD; strongest evidence is in the top third.
 - ats: truthful coverage of important exact JD terms in bullet context, plus parse safety.
@@ -289,10 +296,15 @@ def main() -> None:
     parser.add_argument("--jd", required=True)
     parser.add_argument("--family", default="other", choices=list(FAMILY_ADJUSTMENTS))
     parser.add_argument("--reviewers", default="codex,gemini,claude")
-    parser.add_argument("--optimizer-family", choices=("openai", "google", "anthropic", "other"))
+    parser.add_argument(
+        "--optimizer-family",
+        required=True,
+        choices=("openai", "google", "anthropic", "other"),
+        help="model family doing the optimization; required to measure reviewer diversity",
+    )
     parser.add_argument("--slug")
     parser.add_argument("--timeout", type=int, default=240)
-    parser.add_argument("--min-reviewers", type=int, default=2)
+    parser.add_argument("--min-reviewers", type=int, default=3)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--output", help="write the full JSON result to this path")

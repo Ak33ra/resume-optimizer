@@ -20,11 +20,17 @@ from scripts.scoring import DIMS
 
 def panel_payload(score=80):
     return {
+        "schema_version": 2,
+        "slug": "example",
+        "family": "big_tech",
+        "input": {},
         "panel": {
             "valid": True,
             "decorrelated": True,
             "completed": ["codex", "gemini"],
             "reviewer_families": {"codex": "openai", "gemini": "google"},
+            "optimizer_family": "other",
+            "minimum_reviewers": 2,
         },
         "aggregate": {
             "dimensions": {dim: score for dim in DIMS},
@@ -63,7 +69,9 @@ class RoundTests(unittest.TestCase):
         )
         self.paths.log.write_text("# Optimization Log\n\n## Rounds\n\nold\n", encoding="utf-8")
         self.panel = self.root / "panel.json"
-        self.panel.write_text(json.dumps(panel_payload()), encoding="utf-8")
+        baseline_panel = panel_payload()
+        baseline_panel["input"]["candidate_sha256"] = sha256_text(self.paths.canonical)
+        self.panel.write_text(json.dumps(baseline_panel), encoding="utf-8")
 
     def tearDown(self):
         self.tempdir.cleanup()
@@ -92,7 +100,22 @@ class RoundTests(unittest.TestCase):
     def test_invalid_panel_is_rejected(self):
         value = panel_payload()
         value["panel"]["valid"] = False
+        value["panel"]["completed"] = ["codex"]
+        value["panel"]["decorrelated"] = False
         with self.assertRaisesRegex(RoundError, "not valid"):
+            panel_scores(value)
+
+    def test_init_rejects_panel_for_another_family(self):
+        value = json.loads(self.panel.read_text(encoding="utf-8"))
+        value["family"] = "startup"
+        self.panel.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaisesRegex(RoundError, "panel family"):
+            init_target(self.paths, "big_tech", self.panel, "passed")
+
+    def test_panel_diversity_metadata_is_recomputed(self):
+        value = panel_payload()
+        value["panel"]["optimizer_family"] = "openai"
+        with self.assertRaisesRegex(RoundError, "diversity metadata"):
             panel_scores(value)
 
     def test_log_insert_requires_round_marker(self):
@@ -149,6 +172,32 @@ class RoundTests(unittest.TestCase):
         self.assertEqual(self.paths.output_pdf.read_bytes(), b"CANDIDATE PDF")
         self.assertFalse(self.paths.candidate.exists())
         self.assertIn("decision: KEEP", self.paths.log.read_text(encoding="utf-8"))
+
+    def test_finish_rejects_tampered_policy_recommendation(self):
+        init_target(self.paths, "big_tech", self.panel, "passed")
+        state = start_round(self.paths, "no material improvement")
+        self.paths.candidate_pdf.write_bytes(b"CANDIDATE PDF")
+        state["status"] = "gated"
+        state["pending"]["gate"] = {
+            "passed": True,
+            "candidate_sha256": sha256_text(self.paths.candidate),
+        }
+        atomic_json(self.paths.state, state)
+        paired = panel_payload()
+        paired["input"] = {
+            "incumbent_sha256": sha256_text(self.paths.canonical),
+            "candidate_sha256": sha256_text(self.paths.candidate),
+        }
+        paired["aggregate"] = {
+            "incumbent": panel_payload(80)["aggregate"],
+            "candidate": panel_payload(80)["aggregate"],
+        }
+        paired["recommendation"] = {"decision": "KEEP", "min_delta": 1.0}
+        paired["review_flags"] = {"candidate": {}}
+        paired_path = self.root / "tampered.json"
+        paired_path.write_text(json.dumps(paired), encoding="utf-8")
+        with self.assertRaisesRegex(RoundError, "repository scoring policy"):
+            finish_round(self.paths, paired_path, "none", [], None, False)
 
 
 if __name__ == "__main__":

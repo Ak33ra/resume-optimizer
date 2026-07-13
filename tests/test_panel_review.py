@@ -1,6 +1,7 @@
 import unittest
 
 from scripts.panel_review import (
+    REVIEWERS,
     build_pair_prompt,
     extract_json,
     validate_response,
@@ -23,6 +24,12 @@ class PanelReviewTests(unittest.TestCase):
     def test_paired_response_requires_both_reviews(self):
         with self.assertRaises(ScoreValidationError):
             validate_response({"resume_a": {}}, paired=True)
+
+    def test_external_commands_keep_prompts_out_of_argv(self):
+        self.assertEqual(REVIEWERS["codex"].command()[-1], "-")
+        gemini = REVIEWERS["gemini"].command()
+        self.assertEqual(gemini[gemini.index("-p") + 1], "")
+        self.assertNotIn("--bare", REVIEWERS["claude"].command())
 
 
 if __name__ == "__main__":

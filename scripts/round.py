@@ -22,10 +22,10 @@ from typing import Any
 
 try:
     from .provenance_check import validate_provenance
-    from .scoring import DIMS, FAMILY_ADJUSTMENTS
+    from .scoring import DIMS, FAMILY_ADJUSTMENTS, keep_decision, weights_for
 except ImportError:  # Direct execution
     from provenance_check import validate_provenance
-    from scoring import DIMS, FAMILY_ADJUSTMENTS
+    from scoring import DIMS, FAMILY_ADJUSTMENTS, keep_decision, weights_for
 
 
 STATE_SCHEMA_VERSION = 1
@@ -135,7 +135,37 @@ def load_state(paths: TargetPaths) -> dict[str, Any]:
     return state
 
 
+def validate_panel_metadata(panel: dict[str, Any]) -> None:
+    if panel.get("schema_version") != 2:
+        raise RoundError("panel schema_version must be 2")
+    metadata = panel.get("panel")
+    if not isinstance(metadata, dict):
+        raise RoundError("panel metadata is missing")
+    completed = metadata.get("completed")
+    families = metadata.get("reviewer_families")
+    minimum = metadata.get("minimum_reviewers")
+    optimizer = metadata.get("optimizer_family")
+    if not isinstance(completed, list) or not all(isinstance(name, str) for name in completed):
+        raise RoundError("panel completed-reviewer list is invalid")
+    if not isinstance(families, dict) or any(name not in families for name in completed):
+        raise RoundError("panel reviewer-family map is invalid")
+    if not isinstance(minimum, int) or minimum < 1:
+        raise RoundError("panel minimum-reviewer count is invalid")
+    expected_valid = len(completed) >= minimum
+    if metadata.get("valid") is not expected_valid:
+        raise RoundError("panel validity does not match its completed-reviewer count")
+    external_families = {
+        families[name]
+        for name in completed
+        if families[name] not in (optimizer, "test")
+    }
+    expected_decorrelated = len(external_families) >= 2
+    if metadata.get("decorrelated") is not expected_decorrelated:
+        raise RoundError("panel diversity metadata is inconsistent")
+
+
 def panel_scores(panel: dict[str, Any], identity: str | None = None) -> dict[str, Any]:
+    validate_panel_metadata(panel)
     if not panel.get("panel", {}).get("valid"):
         raise RoundError("panel result is not valid")
     aggregate = panel.get("aggregate")
@@ -161,6 +191,16 @@ def panel_label(panel: dict[str, Any]) -> str:
     reviewers = ", ".join(f"{name}:{families.get(name, '?')}" for name in completed)
     kind = "cross-family" if meta.get("decorrelated") else "correlated/simulated"
     return f"{kind} [{reviewers}]"
+
+
+def validate_panel_target(panel: dict[str, Any], slug: str, family: str) -> None:
+    validate_panel_metadata(panel)
+    if panel.get("family") != family:
+        raise RoundError(
+            f"panel family {panel.get('family')!r} does not match target family {family!r}"
+        )
+    if panel.get("slug") not in (None, slug):
+        raise RoundError(f"panel slug {panel.get('slug')!r} does not match {slug!r}")
 
 
 def score_line(scores: dict[str, Any]) -> str:
@@ -190,6 +230,15 @@ def prepend_log_entry(path: Path, entry: str) -> None:
             os.unlink(temp_name)
 
 
+def ensure_log_ready(path: Path) -> None:
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RoundError(f"cannot read optimization log: {exc}") from exc
+    if "## Rounds" not in content:
+        raise RoundError("optimization log is missing the '## Rounds' marker")
+
+
 def relative_or_string(root: Path, path: Path | None) -> str | None:
     if path is None:
         return None
@@ -206,6 +255,7 @@ def init_target(
         raise RoundError("baseline requires an explicit source-aware truth check")
     if paths.state.exists():
         raise RoundError(f"state already exists: {paths.state}")
+    ensure_log_ready(paths.log)
     for required in (paths.jd, paths.canonical, paths.output_pdf, paths.provenance):
         if not required.is_file():
             raise RoundError(f"baseline prerequisite is missing: {required}")
@@ -213,12 +263,15 @@ def init_target(
     if not provenance["passed"]:
         raise RoundError("baseline provenance failed: " + " | ".join(provenance["errors"]))
     panel = load_json(panel_path)
+    validate_panel_target(panel, paths.slug, family)
     scores = panel_scores(panel)
+    if not _input_hash_matches(paths, "incumbent", panel.get("input", {}).get("candidate_sha256")):
+        raise RoundError("baseline panel hash does not match the canonical resume")
     state = {
         "schema_version": STATE_SCHEMA_VERSION,
         "slug": paths.slug,
         "family": family,
-        "status": "ready",
+        "status": "initializing",
         "round": 0,
         "canonical": {
             "sha256": sha256_text(paths.canonical),
@@ -244,6 +297,8 @@ def init_target(
 - open gaps/questions to user: none
 """
     prepend_log_entry(paths.log, entry)
+    state["status"] = "ready"
+    atomic_json(paths.state, state)
     return state
 
 
@@ -261,6 +316,7 @@ def start_round(paths: TargetPaths, hypothesis: str) -> dict[str, Any]:
     shutil.copy2(paths.provenance, paths.candidate_provenance)
     state["round"] += 1
     state["status"] = "editing"
+    state.pop("stop_reason", None)
     state["pending"] = {
         "round": state["round"],
         "hypothesis": hypothesis,
@@ -369,6 +425,7 @@ def finish_round(
     if sha256_text(paths.candidate) != state["pending"]["gate"]["candidate_sha256"]:
         raise RoundError("candidate changed after the gate; run the gate again")
     panel = load_json(panel_path)
+    validate_panel_target(panel, paths.slug, state["family"])
     if not panel.get("panel", {}).get("valid"):
         raise RoundError("cannot finish with an invalid verifier panel")
     recommendation = panel.get("recommendation")
@@ -382,10 +439,20 @@ def finish_round(
     flags = _flag_values(panel)
     if flags and not flags_resolved:
         raise RoundError("candidate has unresolved reviewer flags: " + " | ".join(flags))
+    ensure_log_ready(paths.log)
 
     before = panel_scores(panel, "incumbent")
     after = panel_scores(panel, "candidate")
-    decision = recommendation["decision"]
+    min_delta = 1.0 if panel["panel"].get("decorrelated") else 2.0
+    policy = keep_decision(
+        before["dimensions"],
+        after["dimensions"],
+        weights_for(state["family"]),
+        min_delta=min_delta,
+    )
+    if recommendation["decision"] != policy["decision"]:
+        raise RoundError("panel recommendation does not match the repository scoring policy")
+    decision = policy["decision"]
     round_number = state["round"]
     if decision == "KEEP" and not paths.candidate_pdf.is_file():
         raise RoundError("compiled candidate PDF is missing")
@@ -439,11 +506,6 @@ def finish_round(
         "last_result": relative_or_string(paths.root, panel_path),
         "label": panel_label(panel),
     }
-    if "## Rounds" not in paths.log.read_text(encoding="utf-8"):
-        raise RoundError("optimization log is missing the '## Rounds' marker")
-    del state["pending"]
-    atomic_json(paths.state, state)
-
     gaps_text = "; ".join(f"{item['id']}: {item['question']}" for item in gap_entries) or "none"
     dimension_deltas = ", ".join(
         f"{dim} {before['dimensions'][dim]:.1f} -> {after['dimensions'][dim]:.1f}"
@@ -454,13 +516,15 @@ def finish_round(
 - composite: {before['composite']:.1f} -> {after['composite']:.1f} (decision: {decision})
 - scores (before -> after): {dimension_deltas}
 - gate: compile/page PASS | ATS PASS | provenance PASS | no-fabrication PASS
-- panel: {panel_label(panel)}; threshold +{recommendation['min_delta']:.1f}
+- panel: {panel_label(panel)}; threshold +{min_delta:.1f}
 - benchmark: {relative_or_string(paths.root, benchmark) or 'not recorded'}
 - hypothesis: {state['history'][-1]['hypothesis']}
 - change: {change}
 - open gaps/questions to user: {gaps_text}
 """
     prepend_log_entry(paths.log, entry)
+    del state["pending"]
+    atomic_json(paths.state, state)
     return state, decision
 
 
