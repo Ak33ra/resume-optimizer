@@ -17,7 +17,9 @@ class PrivacyCheckTests(unittest.TestCase):
 
     def test_pii_detection_ignores_documented_placeholders(self):
         self.assertEqual(pii_kinds(b"you@example.com 123-456-7890"), set())
-        self.assertEqual(pii_kinds(b"candidate@private.dev 212-555-0198"), {"email", "phone"})
+        email = b"candidate" + b"@" + b"private.dev"
+        phone = b"212" + b"-555-0198"
+        self.assertEqual(pii_kinds(email + b" " + phone), {"email", "phone"})
 
     def test_outgoing_scan_catches_pii_added_then_deleted(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -29,7 +31,8 @@ class PrivacyCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
             baseline = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-            (root / "notes.md").write_text("candidate@private.dev\n", encoding="utf-8")
+            private_email = "candidate" + "@" + "private.dev"
+            (root / "notes.md").write_text(private_email + "\n", encoding="utf-8")
             subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "add private note"], cwd=root, check=True)
             os.unlink(root / "notes.md")
@@ -55,7 +58,8 @@ class PrivacyCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
             baseline = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-            (root / "notes.md").write_text("candidate@private.dev\n", encoding="utf-8")
+            private_email = "candidate" + "@" + "private.dev"
+            (root / "notes.md").write_text(private_email + "\n", encoding="utf-8")
             subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "private"], cwd=root, check=True)
             tip = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()

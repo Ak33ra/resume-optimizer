@@ -4,7 +4,7 @@ from scripts.ats_rules import hard_checks_pass, tex_checks, text_checks
 
 
 BASE_TEXT = """Jane Candidate
-jane@example.com | (212) 555-0199
+jane@example.com | 617-555-0100
 Education
 Example University
 Experience
