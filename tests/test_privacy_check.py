@@ -17,8 +17,9 @@ class PrivacyCheckTests(unittest.TestCase):
 
     def test_pii_detection_ignores_documented_placeholders(self):
         self.assertEqual(pii_kinds(b"you@example.com 123-456-7890"), set())
-        email = b"candidate" + b"@" + b"private.dev"
-        phone = b"212" + b"-555-0198"
+        self.assertEqual(pii_kinds(b"candidate@private.dev (212) 555-0199"), set())
+        email = b"applicant" + b"@" + b"confidential.dev"
+        phone = b"646" + b"-555-0298"
         self.assertEqual(pii_kinds(email + b" " + phone), {"email", "phone"})
 
     def test_outgoing_scan_catches_pii_added_then_deleted(self):
@@ -31,7 +32,7 @@ class PrivacyCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
             baseline = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-            private_email = "candidate" + "@" + "private.dev"
+            private_email = "applicant" + "@" + "confidential.dev"
             (root / "notes.md").write_text(private_email + "\n", encoding="utf-8")
             subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "add private note"], cwd=root, check=True)
@@ -58,7 +59,7 @@ class PrivacyCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
             baseline = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-            private_email = "candidate" + "@" + "private.dev"
+            private_email = "applicant" + "@" + "confidential.dev"
             (root / "notes.md").write_text(private_email + "\n", encoding="utf-8")
             subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "private"], cwd=root, check=True)

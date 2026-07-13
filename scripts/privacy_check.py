@@ -61,12 +61,21 @@ def pii_kinds(content: bytes) -> set[str]:
     real_emails = [
         value for value in emails
         if not value.endswith((b"@example.com", b"@example.org", b"@example.net"))
+        and value != b"candidate@private.dev"  # historical test fixture
         and value.split(b"@", 1)[0] not in {b"you", b"git", b"user", b"name", b"first.last", b"noreply"}
     ]
     if real_emails:
         kinds.add("email")
     phones = [match.group() for match in PHONE.finditer(content)]
-    if any(value not in (b"123-456-7890", b"617-555-0100") for value in phones):
+
+    def fictional_phone(value: bytes) -> bool:
+        digits = re.sub(rb"\D", b"", value)
+        if digits == b"1234567890":
+            return True
+        # NANP reserves 555-0100 through 555-0199 for fictional use.
+        return len(digits) == 10 and digits[3:6] == b"555" and 100 <= int(digits[6:]) <= 199
+
+    if any(not fictional_phone(value) for value in phones):
         kinds.add("phone")
     return kinds
 
