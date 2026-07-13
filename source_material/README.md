@@ -22,6 +22,13 @@ for f in *.example.md; do cp "$f" "${f%.example.md}.md"; done
 Your filled-in `*.md` files are the material the agent reads. Fill in only the
 sections you have; delete templates that don't apply.
 
+**Jump-start (optional):** export what ChatGPT / Claude / Gemini already knows
+about you and paste it into these files — the guide in
+[`../docs/importing-from-ai-memory.md`](../docs/importing-from-ai-memory.md) has
+a résumé-tailored export prompt and a heading→file map. Always **verify and
+correct** the export before trusting it (the agent never fabricates, so a wrong
+fact here becomes a wrong résumé line).
+
 ## The starter files
 
 | File | What goes in it |

@@ -46,6 +46,10 @@ page, formats it to survive ATS parsing, and records every round.
    ```bash
    cd source_material && for f in *.example.md; do cp "$f" "${f%.example.md}.md"; done
    ```
+   **Short on time?** Jump-start this by exporting what an AI assistant (ChatGPT,
+   Claude, Gemini, …) already knows about you — see
+   [`docs/importing-from-ai-memory.md`](docs/importing-from-ai-memory.md) — then
+   verify and correct it.
 4. **Add targets.** Save each job posting as `job_descriptions/<slug>.md` (full
    text, especially the qualifications). See
    [`job_descriptions/README.md`](job_descriptions/README.md).
