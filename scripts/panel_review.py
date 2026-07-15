@@ -88,6 +88,10 @@ REVIEWERS = {
     ),
 }
 
+# Public default panel. The opt-in `oss` reviewer is deliberately excluded so a
+# clone with no extra configuration behaves exactly as before.
+DEFAULT_REVIEWERS = "codex,gemini,claude"
+
 
 REVIEW_SCHEMA_EXAMPLE = """{
   "dimensions": {
@@ -282,7 +286,17 @@ def run_reviewer(
 
 
 def _available(name: str) -> bool:
-    return name == "mock" or shutil.which(REVIEWERS[name].command()[0]) is not None
+    if name == "mock":
+        return True
+    if name == "oss":
+        # Opt-in reviewer: report available only when its gateway is configured,
+        # so an unconfigured oss is skipped like an uninstalled CLI instead of
+        # failing at runtime. Keeps the default panel unaffected on a fresh clone.
+        return all(
+            os.environ.get(var)
+            for var in ("PANEL_OSS_BASE_URL", "PANEL_OSS_API_KEY", "PANEL_OSS_MODEL")
+        )
+    return shutil.which(REVIEWERS[name].command()[0]) is not None
 
 
 def _review_flags(review: dict[str, Any]) -> dict[str, list[str]]:
@@ -312,7 +326,7 @@ def main() -> None:
     parser.add_argument("--baseline", help="incumbent resume for paired decision scoring")
     parser.add_argument("--jd", required=True)
     parser.add_argument("--family", default="other", choices=list(FAMILY_ADJUSTMENTS))
-    parser.add_argument("--reviewers", default="codex,gemini,claude")
+    parser.add_argument("--reviewers", default=DEFAULT_REVIEWERS)
     parser.add_argument(
         "--optimizer-family",
         required=True,
@@ -345,14 +359,14 @@ def main() -> None:
     usable = [name for name in requested if _available(name)]
     missing = [name for name in requested if name not in usable]
     for name in missing:
-        print(f"[skip] {name}: not installed", file=sys.stderr)
+        print(f"[skip] {name}: not available", file=sys.stderr)
 
     if args.dry_run:
         preview = build_single_prompt(candidate, jd, args.family)
         print(f"family={args.family} weights={weights_for(args.family)} paired={bool(incumbent)}")
         for name in requested:
             print(f"  {name:8} family={REVIEWERS[name].family:10} "
-                  f"{'available' if name in usable else 'NOT installed'}")
+                  f"{'available' if name in usable else 'NOT available'}")
         print("\n--- prompt preview ---\n" + preview[:1000])
         return
 

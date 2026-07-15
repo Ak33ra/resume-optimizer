@@ -62,7 +62,7 @@ export PANEL_OSS_BASE_URL="https://your-gateway/v1"
 export PANEL_OSS_API_KEY="..."        # kept in env, never in the repo
 export PANEL_OSS_MODEL="glm-5.2"       # any model id the gateway serves
 export PANEL_OSS_FAMILY="zhipu"        # a label distinct from the optimizer family
-# optional: PANEL_OSS_TEMPERATURE, PANEL_OSS_MAX_TOKENS, PANEL_OSS_TIMEOUT
+# optional: PANEL_OSS_TEMPERATURE, PANEL_OSS_MAX_TOKENS, PANEL_OSS_TIMEOUT, PANEL_OSS_USER_AGENT
 
 python3 scripts/panel_review.py resumes/<slug>_resume.candidate.pdf \
   --baseline resumes/<slug>_resume.pdf --jd job_descriptions/<slug>.md \
@@ -76,6 +76,14 @@ With `--optimizer-family anthropic`, a `codex` (openai) + `oss`
 differ from the optimizer, so `decorrelated: true` and the KEEP margin is `+1.0`.
 The reviewer sends the resume and JD text to the configured gateway; treat that
 as opt-in data sharing, exactly like any other external reviewer.
+
+`oss` is fully opt-in: if `PANEL_OSS_BASE_URL` / `PANEL_OSS_API_KEY` /
+`PANEL_OSS_MODEL` are unset, it is reported as unavailable and skipped like an
+uninstalled CLI, so the default `codex,gemini,claude` panel on a fresh clone is
+unaffected. Prefer a straightforward non-reasoning instruct model — some
+reasoning models return empty completions on non-streamed calls. If your gateway
+sits behind Cloudflare and returns HTTP 403 (error 1010), the wrapper already
+sends a browser-like `User-Agent`; override it with `PANEL_OSS_USER_AGENT`.
 
 ## Availability and testing
 

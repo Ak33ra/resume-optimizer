@@ -1,7 +1,10 @@
+import os
 import unittest
 
 from scripts.panel_review import (
+    DEFAULT_REVIEWERS,
     REVIEWERS,
+    _available,
     build_pair_prompt,
     extract_json,
     validate_response,
@@ -31,6 +34,37 @@ class PanelReviewTests(unittest.TestCase):
         gemini = REVIEWERS["gemini"].command()
         self.assertEqual(gemini[gemini.index("-p") + 1], "")
         self.assertNotIn("--bare", REVIEWERS["claude"].command())
+
+
+class OssReviewerOptInTests(unittest.TestCase):
+    """The opt-in oss reviewer must never affect a fresh, unconfigured clone."""
+
+    _OSS_VARS = ("PANEL_OSS_BASE_URL", "PANEL_OSS_API_KEY", "PANEL_OSS_MODEL")
+
+    def setUp(self):
+        self._saved = {v: os.environ.pop(v, None) for v in self._OSS_VARS}
+
+    def tearDown(self):
+        for var, val in self._saved.items():
+            if val is None:
+                os.environ.pop(var, None)
+            else:
+                os.environ[var] = val
+
+    def test_oss_excluded_from_default_panel(self):
+        self.assertNotIn("oss", DEFAULT_REVIEWERS.split(","))
+
+    def test_oss_unavailable_without_config(self):
+        self.assertFalse(_available("oss"))
+
+    def test_oss_available_when_configured(self):
+        for var in self._OSS_VARS:
+            os.environ[var] = "x"
+        self.assertTrue(_available("oss"))
+
+    def test_oss_unavailable_with_partial_config(self):
+        os.environ["PANEL_OSS_BASE_URL"] = "x"  # missing key + model
+        self.assertFalse(_available("oss"))
 
 
 if __name__ == "__main__":
