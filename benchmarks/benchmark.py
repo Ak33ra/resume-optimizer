@@ -70,21 +70,21 @@ SKILL_LEXICON = {
 
 
 def extract_text(pdf: str) -> str:
+    # Prefer poppler/pdftotext. pypdf inserts spurious spaces after bold leading
+    # capitals in the template's Computer Modern font ("Tools" -> "T ools"),
+    # which would wrongly penalize keyword coverage; use pypdf only as a fallback.
+    try:
+        return subprocess.check_output(["pdftotext", "-layout", pdf, "-"], text=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass  # poppler missing or failed on this file; fall back to pypdf
     try:
         from pypdf import PdfReader
     except Exception:
-        PdfReader = None
-    if PdfReader is not None:
-        try:
-            return "\n".join((p.extract_text() or "") for p in PdfReader(pdf).pages)
-        except Exception as e:
-            sys.exit(f"ERROR: could not read '{pdf}' as a PDF ({e}).")
-    try:
-        return subprocess.check_output(["pdftotext", "-layout", pdf, "-"], text=True)
-    except FileNotFoundError:
         sys.exit("ERROR: no PDF text extractor. Install `pip install pypdf` or `apt-get install -y poppler-utils`.")
+    try:
+        return "\n".join((p.extract_text() or "") for p in PdfReader(pdf).pages)
     except Exception as e:
-        sys.exit(f"ERROR: could not read '{pdf}' ({e}).")
+        sys.exit(f"ERROR: could not read '{pdf}' as a PDF ({e}).")
 
 
 def _norm(text: str) -> str:

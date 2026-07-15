@@ -111,22 +111,26 @@ def extract_resume_text(path: str) -> str:
     if path.lower().endswith(".tex"):
         with open(path, encoding="utf-8", errors="replace") as handle:
             return handle.read()
-    try:
-        from pypdf import PdfReader
-
-        return "\n".join((page.extract_text() or "") for page in PdfReader(path).pages)
-    except ImportError:
-        pass
-    except Exception as exc:
-        raise RuntimeError(f"could not read {path!r} as PDF: {exc}") from exc
+    # Prefer poppler/pdftotext. pypdf inserts spurious spaces after bold leading
+    # capitals in the template's Computer Modern font ("Tools" -> "T ools"),
+    # which would wrongly penalize reviewers' writing/formatting/ATS scoring; use
+    # pypdf only as a fallback when poppler is unavailable.
     try:
         return subprocess.check_output(
             ["pdftotext", "-layout", path, "-"], text=True, stderr=subprocess.PIPE
         )
-    except Exception as exc:
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass  # poppler missing or failed on this file; fall back to pypdf
+    try:
+        from pypdf import PdfReader
+
+        return "\n".join((page.extract_text() or "") for page in PdfReader(path).pages)
+    except ImportError as exc:
         raise RuntimeError(
-            f"could not read {path!r}; provide .tex or install pypdf/poppler"
+            f"could not read {path!r}; provide .tex or install poppler-utils or pypdf"
         ) from exc
+    except Exception as exc:
+        raise RuntimeError(f"could not read {path!r} as PDF: {exc}") from exc
 
 
 def rubric(family: str) -> str:

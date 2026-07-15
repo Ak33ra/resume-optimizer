@@ -20,25 +20,26 @@ def normalize(text: str) -> str:
 
 
 def extract_text(pdf: str) -> str:
-    try:
-        from pypdf import PdfReader
-    except ImportError:
-        PdfReader = None
-    if PdfReader is not None:
-        try:
-            return "\n".join((page.extract_text() or "") for page in PdfReader(pdf).pages)
-        except Exception as exc:
-            raise RuntimeError(f"could not read {pdf!r} as a PDF ({exc})") from exc
+    # Prefer poppler/pdftotext. pypdf inserts spurious spaces after bold leading
+    # capitals in the template's Computer Modern font ("Tools" -> "T ools"),
+    # which would wrongly penalize ATS/keyword scoring; use pypdf only as a
+    # fallback when poppler is unavailable.
     try:
         return subprocess.check_output(
             ["pdftotext", "-layout", pdf, "-"], text=True, stderr=subprocess.PIPE
         )
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass  # poppler missing or failed on this file; fall back to pypdf
+    try:
+        from pypdf import PdfReader
+    except ImportError as exc:
         raise RuntimeError(
-            "no PDF extractor available; install pypdf or poppler-utils"
+            "no PDF extractor available; install poppler-utils or pypdf"
         ) from exc
+    try:
+        return "\n".join((page.extract_text() or "") for page in PdfReader(pdf).pages)
     except Exception as exc:
-        raise RuntimeError(f"could not read {pdf!r} ({exc})") from exc
+        raise RuntimeError(f"could not read {pdf!r} as a PDF ({exc})") from exc
 
 
 def keyword_coverage(text: str, path: str | None) -> dict | None:
