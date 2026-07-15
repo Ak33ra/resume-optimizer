@@ -52,6 +52,8 @@ class ReviewerSpec:
     prompt_via_stdin: bool = True
 
 
+_REVIEWERS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reviewers")
+
 REVIEWERS = {
     "codex": ReviewerSpec(
         "openai",
@@ -71,6 +73,14 @@ REVIEWERS = {
             "claude", "-p", "--safe-mode", "--no-session-persistence",
             "--permission-mode", "dontAsk", "--output-format", "text",
         ],
+    ),
+    # OpenAI-compatible reviewer backed by any /v1/chat/completions gateway. All
+    # provider config (base URL, key, model, family) comes from PANEL_OSS_* env
+    # vars, so nothing provider-specific is hardcoded and this stays public-safe.
+    # Choose a model whose family differs from the optimizer to add decorrelation.
+    "oss": ReviewerSpec(
+        os.environ.get("PANEL_OSS_FAMILY", "oss"),
+        lambda: [sys.executable, os.path.join(_REVIEWERS_DIR, "oai_compat.py")],
     ),
     "mock": ReviewerSpec(
         "test",

@@ -49,6 +49,34 @@ scores created from a different frozen snapshot.
 The orchestrator independently recomputes the decision and verifies both input
 resume and JD hashes before promoting anything.
 
+## OpenAI-compatible reviewer (OSS models)
+
+`oss` is a built-in reviewer backed by any OpenAI-compatible
+`/v1/chat/completions` gateway, letting you add a model family beyond
+Codex/Gemini/Claude (GLM, Qwen, MiniMax, Kimi, DeepSeek, ...) for genuine
+decorrelation without another OAuth flow. Configure it entirely through
+environment variables — nothing provider-specific is committed:
+
+```bash
+export PANEL_OSS_BASE_URL="https://your-gateway/v1"
+export PANEL_OSS_API_KEY="..."        # kept in env, never in the repo
+export PANEL_OSS_MODEL="glm-5.2"       # any model id the gateway serves
+export PANEL_OSS_FAMILY="zhipu"        # a label distinct from the optimizer family
+# optional: PANEL_OSS_TEMPERATURE, PANEL_OSS_MAX_TOKENS, PANEL_OSS_TIMEOUT
+
+python3 scripts/panel_review.py resumes/<slug>_resume.candidate.pdf \
+  --baseline resumes/<slug>_resume.pdf --jd job_descriptions/<slug>.md \
+  --family <family> --optimizer-family anthropic \
+  --reviewers codex,oss,claude --slug <slug> \
+  --output resumes/<slug>_r<N>.panel.json
+```
+
+With `--optimizer-family anthropic`, a `codex` (openai) + `oss`
+(non-openai/anthropic family) + `claude` (anthropic) panel has two families that
+differ from the optimizer, so `decorrelated: true` and the KEEP margin is `+1.0`.
+The reviewer sends the resume and JD text to the configured gateway; treat that
+as opt-in data sharing, exactly like any other external reviewer.
+
 ## Availability and testing
 
 ```bash
