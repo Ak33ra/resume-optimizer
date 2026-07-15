@@ -84,6 +84,14 @@ def main() -> None:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            # Some gateways sit behind Cloudflare, which 403s (error 1010) the
+            # default urllib User-Agent as a bot even on authenticated API calls.
+            # Send a browser-like UA; override with PANEL_OSS_USER_AGENT if needed.
+            "User-Agent": os.environ.get(
+                "PANEL_OSS_USER_AGENT",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            ),
         },
     )
     try:
